@@ -1,0 +1,23 @@
+# Copyright 2020 Ubuntu
+# See LICENSE file for licensing details.
+#
+synchronize:
+  description: Synchronize the packages.
+create-snapshot:
+  description: Create timestemped snapshot of current package metadata.
+list-snapshots:
+  description: List snapshots.
+delete-snapshot:
+  description: Delete snapshot. Note that it deletes only the metadata.
+  params:
+    name:
+      description: "Name of the snapshot to delete."
+      type: string
+      default: ""
+publish-snapshot:
+  description: Publish snapshot.
+  params:
+    name:
+      description: "Name of the snapshot to publish."
+      type: string
+      default: ""

@@ -1,0 +1,14 @@
+set base_path         {{ opts['base-path'] }}
+set mirror_path       $base_path/mirror
+set skel_path         $base_path/skel
+set var_path          $base_path/var
+set postmirror_script $var_path/postmirror.sh
+set defaultarch       {{ opts['architecture'] }}
+set run_postmirror    0
+set nthreads          {{ opts['threads'] }}
+set limit_rate        100m
+set _tilde            0
+
+{% for mirror in opts['mirror-list'] -%}
+{{ mirror }}
+{% endfor -%}

@@ -1,0 +1,18 @@
+# Copyright 2020 Ubuntu
+# See LICENSE file for licensing details.
+name: apt-mirror
+description: |
+  A small tool that provides ability to mirror any parts (or even all) of Debian and Ubuntu GNU/Linux distributions or any other apt sources which typically provided by open source developers.
+summary: |
+  A small tool that provides ability to mirror Ubuntu distributions.
+tags:
+- "mirror"
+- "security"
+- "apt"
+series:
+- "bionic"
+provides:
+  publish:
+    interface: "web-publish"
+
+

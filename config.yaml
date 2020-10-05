@@ -1,0 +1,25 @@
+# Copyright 2020 Ubuntu
+# See LICENSE file for licensing details.
+
+options:
+  mirror-list:
+    default: |-
+      deb http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
+    description: A list of repositories to mirror.
+    type: string
+  base-path: 
+    default: /var/spool/apt-mirror
+    description: Repository base path.
+    type: string
+  architecture: 
+    default: amd64
+    description: Architecture(s) to mirror.
+    type: string
+  threads: 
+    default: 20
+    description: Number of download threads.
+    type: int
+  cron-schedule:
+    default: None
+    description: The cron tab time entry for automatic synchronisation.
+    type: string
