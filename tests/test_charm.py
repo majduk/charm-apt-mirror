@@ -87,7 +87,7 @@ class TestCharm(unittest.TestCase):
             'set nthreads          {threads}\n'
             'set limit_rate        100m\n'
             'set _tilde            0\n'
-            '\n{mirror-list}\n'.format(**default_config).encode()
+            '{mirror-list}\n'.format(**default_config).encode()
         )
 
     @patch('subprocess.check_output')
