@@ -171,14 +171,14 @@ class TestCharm(unittest.TestCase):
     @patch('os.makedirs')
     def test_create_snapshot_action(self, os_makedirs, os_symlink, os_path_exists,
                                     shutil_copytree, os_walk):
-        def a2g(x):
-            return ([n, ['{}'.format(n)]] for n in x)
+        def a2g(mirror_path, mirror_upstream, x):
+            return (["{}/{}".format(mirror_path, mirror_upstream), ['{}'.format(n)], n] for n in x)
 
         rand_n = random.randint(10, 100)
-        rand_m = random.randint(10, 100)
-        os_walk.side_effect = iter([a2g([rand_n]), a2g([rand_m])])
-        os_path_exists.return_value = False
         default_config = self.default_config()
+        mirror_path = "{}/mirror".format(default_config['base-path'])
+        os_walk.side_effect = iter([a2g(mirror_path, rand_n, ['pool', 'dists'])])
+        os_path_exists.return_value = False
         harness = Harness(AptMirrorCharm)
         harness.begin()
         harness.charm._stored.config = default_config
@@ -188,11 +188,12 @@ class TestCharm(unittest.TestCase):
         action_event = Mock()
         harness.charm._on_create_snapshot_action(action_event)
         self.assertTrue(os_symlink.called)
-        assert os_symlink.call_args == call('{}/mirror/{}/{}/pool'
-                                            .format(default_config['base-path'], rand_n, rand_m),
-                                            '{}/{}/{}/{}/pool'.format(default_config['base-path'],
-                                                                      snapshot_name, rand_n,
-                                                                      rand_m))
+        self.assertTrue(os_makedirs.called)
+        assert os_symlink.call_args == call('{}/mirror/{}/pool'
+                                            .format(default_config['base-path'], rand_n),
+                                            '{}/{}/{}/pool'.format(default_config['base-path'],
+                                                                   snapshot_name,
+                                                                   rand_n))
 
     @patch('os.walk')
     def test_list_snapshots_action(self, os_walk):

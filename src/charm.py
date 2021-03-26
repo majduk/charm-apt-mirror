@@ -98,17 +98,25 @@ class AptMirrorCharm(CharmBase):
         mirror_path = "{}/mirror".format(self._stored.config['base-path'])
         if not os.path.exists(snapshot_name_path):
             os.makedirs(snapshot_name_path)
-        for archive in next(os.walk(mirror_path))[1]:
-            for project in next(os.walk("{}/{}".format(mirror_path, archive)))[1]:
-                src_root = "{}/{}/{}".format(mirror_path, archive, project)
-                src_dists = "{}/dists".format(src_root)
+        for dirpath, dirs, files in os.walk(mirror_path):
+            if 'pool' in dirs:
+                src_root = dirpath
                 src_pool = "{}/pool".format(src_root)
-                dst_root = "{}/{}/{}".format(snapshot_name_path, archive, project)
-                dst_dists = "{}/dists".format(dst_root)
+                src_subtree = os.path.relpath(src_root, mirror_path)
+                dst_root = "{}/{}".format(snapshot_name_path, src_subtree)
                 dst_pool = "{}/pool".format(dst_root)
-                os.makedirs(dst_root)
+                os.makedirs(dst_root, exist_ok=True)
                 os.symlink(src_pool, dst_pool)
+                logger.info('{} -> {}'.format(src_pool, dst_pool))
+            if 'dists' in dirs:
+                src_root = dirpath
+                src_dists = "{}/dists".format(src_root)
+                src_subtree = os.path.relpath(src_root, mirror_path)
+                dst_root = "{}/{}".format(snapshot_name_path, src_subtree)
+                dst_dists = "{}/dists".format(dst_root)
+                os.makedirs(dst_root, exist_ok=True)
                 shutil.copytree(src_dists, dst_dists)
+                logger.info('{} -> {}'.format(src_dists, dst_dists))
 
     def _on_delete_snapshot_action(self, event):
         snapshot = event.params["name"]
