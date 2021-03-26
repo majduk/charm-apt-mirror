@@ -12,6 +12,7 @@ from uuid import uuid4
 from ops.testing import Harness
 from charm import AptMirrorCharm
 import random
+import os
 
 
 class TestCharm(unittest.TestCase):
@@ -72,6 +73,68 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         default_config = self.default_config()
+        self.assertEqual(harness.charm._stored.config, {})
+        with patch('builtins.open', mock_open_call):
+            harness.update_config(default_config)
+        mock_open_call.assert_called_with('/etc/apt/mirror.list', "wb")
+        mock_open_call.return_value.write.assert_called_once_with(
+            'set base_path         {base-path}\n'
+            'set mirror_path       $base_path/mirror\n'
+            'set skel_path         $base_path/skel\n'
+            'set var_path          $base_path/var\n'
+            'set postmirror_script $var_path/postmirror.sh\n'
+            'set defaultarch       {architecture}\n'
+            'set run_postmirror    0\n'
+            'set nthreads          {threads}\n'
+            'set limit_rate        100m\n'
+            'set _tilde            0\n'
+            '{mirror-list}\n'.format(**default_config).encode()
+        )
+
+    @patch.dict(os.environ, {"JUJU_CHARM_HTTP_PROXY": "httpproxy",
+                             "JUJU_CHARM_HTTPS_PROXY": "httpsproxy"},
+                clear=True)
+    def test_juju_proxy(self):
+        with open('templates/mirror.list.j2') as f:
+            t = f.read()
+        mock_open_call = mock_open(read_data=t)
+        harness = Harness(AptMirrorCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        default_config = self.default_config()
+        self.assertEqual(harness.charm._stored.config, {})
+        with patch('builtins.open', mock_open_call):
+            harness.update_config(default_config)
+        mock_open_call.assert_called_with('/etc/apt/mirror.list', "wb")
+        mock_open_call.return_value.write.assert_called_once_with(
+            'set base_path         {base-path}\n'
+            'set mirror_path       $base_path/mirror\n'
+            'set skel_path         $base_path/skel\n'
+            'set var_path          $base_path/var\n'
+            'set postmirror_script $var_path/postmirror.sh\n'
+            'set defaultarch       {architecture}\n'
+            'set run_postmirror    0\n'
+            'set nthreads          {threads}\n'
+            'set limit_rate        100m\n'
+            'set _tilde            0\n'
+            'set use_proxy         on\n'
+            'set http_proxy        httpproxy\n'
+            'set https_proxy       httpsproxy\n'
+            '{mirror-list}\n'.format(**default_config).encode()
+        )
+
+    @patch.dict(os.environ, {"JUJU_CHARM_HTTP_PROXY": "httpproxy",
+                             "JUJU_CHARM_HTTPS_PROXY": "httpsproxy"},
+                clear=True)
+    def test_juju_proxy_override(self):
+        with open('templates/mirror.list.j2') as f:
+            t = f.read()
+        mock_open_call = mock_open(read_data=t)
+        harness = Harness(AptMirrorCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        default_config = self.default_config()
+        default_config['use-proxy'] = False
         self.assertEqual(harness.charm._stored.config, {})
         with patch('builtins.open', mock_open_call):
             harness.update_config(default_config)

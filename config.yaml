@@ -23,3 +23,7 @@ options:
     default: None
     description: The cron tab time entry for automatic synchronisation.
     type: string
+  use-proxy:
+    default: True
+    description: Use model juju-http(s)-proxy settings if provided.
+    type: boolean

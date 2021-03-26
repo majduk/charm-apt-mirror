@@ -62,12 +62,15 @@ class AptMirrorCharm(CharmBase):
                 value = self.model.config[key]
                 logger.info("Setting {} to: {}".format(key, value))
                 self._stored.config[key] = value
-        if 'JUJU_CHARM_HTTP_PROXY' in os.environ:
-            self._stored.config['http_proxy'] = os.environ['JUJU_CHARM_HTTP_PROXY']
-            self._stored.config['use_proxy'] = 'on'
-        if 'JUJU_CHARM_HTTPS_PROXY' in os.environ:
-            self._stored.config['https_proxy'] = os.environ['JUJU_CHARM_HTTPS_PROXY']
-            self._stored.config['use_proxy'] = 'on'
+        if 'use-proxy' in self._stored.config and self._stored.config['use-proxy']:
+            if 'JUJU_CHARM_HTTP_PROXY' in os.environ:
+                self._stored.config['http_proxy'] = os.environ['JUJU_CHARM_HTTP_PROXY']
+                self._stored.config['use_proxy'] = True
+            if 'JUJU_CHARM_HTTPS_PROXY' in os.environ:
+                self._stored.config['https_proxy'] = os.environ['JUJU_CHARM_HTTPS_PROXY']
+                self._stored.config['use_proxy'] = True
+        else:
+            self._stored.config['use_proxy'] = False
         self._stored.config['mirror-list'] = self.model.config['mirror-list'].splitlines()
         self._render_config(self._stored.config)
         if 'cron-schedule' in self._stored.config and \
