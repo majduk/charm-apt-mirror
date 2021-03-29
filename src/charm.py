@@ -15,6 +15,8 @@ import os
 import shutil
 import time
 from datetime import datetime
+import re
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,7 @@ class AptMirrorCharm(CharmBase):
         logger.info("Create snapshot {}".format(snapshot_name))
         snapshot_name_path = "{}/{}".format(self._stored.config['base-path'], snapshot_name)
         mirror_path = "{}/mirror".format(self._stored.config['base-path'])
+        mirrors = self._mirror_names()
         if not os.path.exists(snapshot_name_path):
             os.makedirs(snapshot_name_path)
         for dirpath, dirs, files in os.walk(mirror_path):
@@ -103,6 +106,11 @@ class AptMirrorCharm(CharmBase):
                 src_root = dirpath
                 src_pool = "{}/pool".format(src_root)
                 src_subtree = os.path.relpath(src_root, mirror_path)
+                if 'strip-mirror-name' in self._stored.config and \
+                   self._stored.config['strip-mirror-name']:
+                    for m in mirrors:
+                        if re.findall(r'^{}'.format(m), src_subtree):
+                            src_subtree = os.path.relpath(src_subtree, m)
                 dst_root = "{}/{}".format(snapshot_name_path, src_subtree)
                 dst_pool = "{}/pool".format(dst_root)
                 os.makedirs(dst_root, exist_ok=True)
@@ -161,6 +169,10 @@ class AptMirrorCharm(CharmBase):
 
     def _get_snapshot_name(self):
         return 'snapshot-{}'.format(datetime.now().strftime("%Y%m%d%H%M%S"))
+
+    def _mirror_names(self):
+        return [urlparse(mirror.split()[1]).hostname
+                for mirror in self._stored.config['mirror-list']]
 
 
 if __name__ == "__main__":

@@ -13,13 +13,15 @@ from ops.testing import Harness
 from charm import AptMirrorCharm
 import random
 import os
+from urllib.parse import urlparse
 
 
 class TestCharm(unittest.TestCase):
 
     def default_config(self):
         return {
-            'mirror-list': "deb {}\ndeb {}".format(uuid4(), uuid4()),
+            'mirror-list': "deb http://{}/a\ndeb http://{}/b"
+                           .format(uuid4(), uuid4()),
             'base-path': uuid4(),
             'architecture': uuid4(),
             'threads': random.randint(10, 20),
@@ -174,10 +176,13 @@ class TestCharm(unittest.TestCase):
         def a2g(mirror_path, mirror_upstream, x):
             return (["{}/{}".format(mirror_path, mirror_upstream), ['{}'.format(n)], n] for n in x)
 
-        rand_n = random.randint(10, 100)
+        rand_subdir = random.randint(10, 100)
         default_config = self.default_config()
+        # splitting the lines is handled by config-changed. This hook is not ran here
+        # hence it is needed to handle the splitting manually here.
+        default_config['mirror-list'] = default_config['mirror-list'].splitlines()
         mirror_path = "{}/mirror".format(default_config['base-path'])
-        os_walk.side_effect = iter([a2g(mirror_path, rand_n, ['pool', 'dists'])])
+        os_walk.side_effect = iter([a2g(mirror_path, rand_subdir, ['pool', 'dists'])])
         os_path_exists.return_value = False
         harness = Harness(AptMirrorCharm)
         harness.begin()
@@ -190,10 +195,49 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(os_symlink.called)
         self.assertTrue(os_makedirs.called)
         assert os_symlink.call_args == call('{}/mirror/{}/pool'
-                                            .format(default_config['base-path'], rand_n),
+                                            .format(default_config['base-path'], rand_subdir),
                                             '{}/{}/{}/pool'.format(default_config['base-path'],
                                                                    snapshot_name,
-                                                                   rand_n))
+                                                                   rand_subdir))
+
+    @patch('os.walk')
+    @patch('shutil.copytree')
+    @patch('os.path.exists')
+    @patch('os.symlink')
+    @patch('os.makedirs')
+    def test_create_snapshot_action_strip_mirrors(self, os_makedirs, os_symlink, os_path_exists,
+                                                  shutil_copytree, os_walk):
+        def a2g(mirror_path, mirror_upstream, x):
+            return (["{}/{}".format(mirror_path, mirror_upstream), ['{}'.format(n)], n] for n in x)
+
+        rand_subdir = random.randint(10, 100)
+        default_config = self.default_config()
+        default_config['strip-mirror-name'] = True
+        # splitting the lines is handled by config-changed. This hook is not ran here
+        # hence it is needed to handle the splitting manually here.
+        default_config['mirror-list'] = default_config['mirror-list'].splitlines()
+        mirror_url = default_config['mirror-list'][0].split()[1]
+        mirror_host = urlparse(mirror_url).hostname
+        mirror_path = "{}/mirror".format(default_config['base-path'])
+        os_walk.side_effect = iter([a2g("{}/{}".format(mirror_path, mirror_host),
+                                        rand_subdir, ['pool', 'dists'])])
+        os_path_exists.return_value = False
+        harness = Harness(AptMirrorCharm)
+        harness.begin()
+        harness.charm._stored.config = default_config
+        harness.charm._get_snapshot_name = Mock()
+        snapshot_name = uuid4()
+        harness.charm._get_snapshot_name.return_value = snapshot_name
+        action_event = Mock()
+        harness.charm._on_create_snapshot_action(action_event)
+        self.assertTrue(os_symlink.called)
+        self.assertTrue(os_makedirs.called)
+        assert os_symlink.call_args == call('{}/mirror/{}/{}/pool'
+                                            .format(default_config['base-path'], mirror_host,
+                                                    rand_subdir),
+                                            '{}/{}/{}/pool'.format(default_config['base-path'],
+                                                                   snapshot_name,
+                                                                   rand_subdir))
 
     @patch('os.walk')
     def test_list_snapshots_action(self, os_walk):

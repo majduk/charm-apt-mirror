@@ -27,3 +27,7 @@ options:
     default: True
     description: Use model juju-http(s)-proxy settings if provided.
     type: boolean
+  strip-mirror-name:
+    default: False
+    description: Strip upstream mirror name from repo paths in the snapshots.
+    type: boolean
