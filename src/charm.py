@@ -44,13 +44,18 @@ class AptMirrorCharm(CharmBase):
         event.relation.data[self.model.unit].update({'path': publish_path})
 
     def _on_update_status(self, _):
-        path = self._stored.config['base-path'] + '/mirror'
-        if os.path.isdir(path):
-            stat = os.stat(path)
+        published_snapshot = self._get_published_snapshot()
+        if published_snapshot:
             self.model.unit.status = \
-                ActiveStatus("Last sync: {}".format(time.ctime(stat.st_mtime)))
+                ActiveStatus("Publishes: {}".format(published_snapshot))
         else:
-            self.model.unit.status = BlockedStatus("Packages not synchronized")
+            path = self._stored.config['base-path'] + '/mirror'
+            if os.path.isdir(path):
+                stat = os.stat(path)
+                self.model.unit.status = \
+                    BlockedStatus("Last sync: {} not published".format(time.ctime(stat.st_mtime)))
+            else:
+                self.model.unit.status = BlockedStatus("Packages not synchronized")
 
     def _on_install(self, _):
         subprocess.check_output(["apt", "install", "-y", "apt-mirror"])
@@ -173,6 +178,11 @@ class AptMirrorCharm(CharmBase):
     def _mirror_names(self):
         return [urlparse(mirror.split()[1]).hostname
                 for mirror in self._stored.config['mirror-list']]
+
+    def _get_published_snapshot(self):
+        publish_path = "{}/publish".format(self._stored.config['base-path'])
+        if os.path.islink(publish_path):
+            return os.path.basename(os.readlink(publish_path))
 
 
 if __name__ == "__main__":

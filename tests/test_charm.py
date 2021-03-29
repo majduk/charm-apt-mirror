@@ -14,6 +14,7 @@ from charm import AptMirrorCharm
 import random
 import os
 from urllib.parse import urlparse
+from ops.model import BlockedStatus, ActiveStatus
 
 
 class TestCharm(unittest.TestCase):
@@ -22,10 +23,58 @@ class TestCharm(unittest.TestCase):
         return {
             'mirror-list': "deb http://{}/a\ndeb http://{}/b"
                            .format(uuid4(), uuid4()),
-            'base-path': uuid4(),
-            'architecture': uuid4(),
+            'base-path': str(uuid4()),
+            'architecture': str(uuid4()),
             'threads': random.randint(10, 20),
         }
+
+    @patch('os.path.islink')
+    def test_update_status_not_synced(self, os_path_islink):
+        os_path_islink.return_value = False
+        harness = Harness(AptMirrorCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        default_config = self.default_config()
+        harness.charm._stored.config = default_config
+        action_event = Mock()
+        harness.charm._on_update_status(action_event)
+        assert harness.model.unit.status == BlockedStatus('Packages not synchronized')
+
+    @patch('os.path.islink')
+    @patch('os.path.isdir')
+    @patch('os.stat')
+    def test_update_status_not_published(self, os_stat, os_path_isdir, os_path_islink):
+        os_path_islink.return_value = False
+        os_path_isdir.return_value = True
+
+        class MockStat():
+            st_mtime = 1
+
+        os_stat.return_value = MockStat()
+        harness = Harness(AptMirrorCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        default_config = self.default_config()
+        harness.charm._stored.config = default_config
+        action_event = Mock()
+        harness.charm._on_update_status(action_event)
+        assert harness.model.unit.status == BlockedStatus('Last sync: Thu Jan  1 01:00:01 1970 '
+                                                          'not published')
+
+    @patch('os.path.islink')
+    @patch('os.readlink')
+    def test_update_status_published(self, os_readlink, os_path_islink):
+        os_path_islink.return_value = True
+        snapshot_name = uuid4()
+        os_readlink.return_value = '/tmp/{}'.format(snapshot_name)
+        harness = Harness(AptMirrorCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        default_config = self.default_config()
+        harness.charm._stored.config = default_config
+        action_event = Mock()
+        harness.charm._on_update_status(action_event)
+        assert harness.model.unit.status == ActiveStatus('Publishes: {}'.format(snapshot_name))
 
     @patch('builtins.open', new_callable=mock_open)
     def test_publish_relation_joined(self, mock_open_call):
