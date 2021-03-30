@@ -31,3 +31,7 @@ options:
     default: False
     description: Strip upstream mirror name from repo paths in the snapshots.
     type: boolean
+  strip-mirror-path:
+    default: None
+    description: Strip upstream mirror path component in the snapshots.
+    type: string

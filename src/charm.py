@@ -110,13 +110,8 @@ class AptMirrorCharm(CharmBase):
             if 'pool' in dirs:
                 src_root = dirpath
                 src_pool = "{}/pool".format(src_root)
-                src_subtree = os.path.relpath(src_root, mirror_path)
-                if 'strip-mirror-name' in self._stored.config and \
-                   self._stored.config['strip-mirror-name']:
-                    for m in mirrors:
-                        if re.findall(r'^{}'.format(m), src_subtree):
-                            src_subtree = os.path.relpath(src_subtree, m)
-                dst_root = "{}/{}".format(snapshot_name_path, src_subtree)
+                subtree = self._build_subtree(mirrors, src_root, mirror_path)
+                dst_root = "{}/{}".format(snapshot_name_path, subtree)
                 dst_pool = "{}/pool".format(dst_root)
                 os.makedirs(dst_root, exist_ok=True)
                 os.symlink(src_pool, dst_pool)
@@ -124,8 +119,8 @@ class AptMirrorCharm(CharmBase):
             if 'dists' in dirs:
                 src_root = dirpath
                 src_dists = "{}/dists".format(src_root)
-                src_subtree = os.path.relpath(src_root, mirror_path)
-                dst_root = "{}/{}".format(snapshot_name_path, src_subtree)
+                subtree = self._build_subtree(mirrors, src_root, mirror_path)
+                dst_root = "{}/{}".format(snapshot_name_path, subtree)
                 dst_dists = "{}/dists".format(dst_root)
                 os.makedirs(dst_root, exist_ok=True)
                 shutil.copytree(src_dists, dst_dists)
@@ -183,6 +178,23 @@ class AptMirrorCharm(CharmBase):
         publish_path = "{}/publish".format(self._stored.config['base-path'])
         if os.path.islink(publish_path):
             return os.path.basename(os.readlink(publish_path))
+
+    def _build_subtree(self, mirrors, root, path):
+        # path relative to root directory
+        subtree = os.path.relpath(root, path)
+        # strip mirror name from the path
+        if 'strip-mirror-name' in self._stored.config and \
+           self._stored.config['strip-mirror-name']:
+            for m in mirrors:
+                if re.findall(r'^{}'.format(m), subtree):
+                    subtree = os.path.relpath(subtree, m)
+        # strip arbitrary component from the path
+        if 'strip-mirror-path' in self._stored.config and \
+           self._stored.config['strip-mirror-path']:
+            if self._stored.config['strip-mirror-path'] in subtree:
+                subtree = subtree.replace(self._stored.config['strip-mirror-path'],
+                                          '')
+        return subtree
 
 
 if __name__ == "__main__":
