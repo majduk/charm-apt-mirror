@@ -6,8 +6,7 @@
 build/
 env/
 venv/
-src/__pycache__/
-tests/unit/__pycache__/
+__pycache__/
 *.charm
 .coverage
 report/

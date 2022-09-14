@@ -1,5 +1,5 @@
 #!/bin/bash
-# This is a template `rename.sh` file for reactive charms
+# This is a template `rename.sh` file for ops charms
 # This file is managed by bootstack-charms-spec and should not be modified
 # within individual charm repos. https://launchpad.net/bootstack-charms-spec
 

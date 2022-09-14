@@ -1,12 +1,10 @@
-# This is a template `Makefile` file for reactive charms
+# This is a template `Makefile` file for ops charms
 # This file is managed by bootstack-charms-spec and should not be modified
 # within individual charm repos. https://launchpad.net/bootstack-charms-spec
 
 PYTHON := /usr/bin/python3
 
 PROJECTPATH=$(dir $(realpath $(MAKEFILE_LIST)))
-CHARM_BUILD_DIR:=${PROJECTPATH}.build
-CHARM_INTERFACES_DIR:=${PROJECTPATH}/interfaces
 RELEASE_CHANNEL:=edge
 METADATA_FILE="metadata.yaml"
 CHARM_NAME=$(shell cat ${PROJECTPATH}/${METADATA_FILE} | grep -E '^name:' | awk '{print $$2}')
@@ -21,8 +19,7 @@ help:
 	@echo " make submodules-update - update submodules to latest changes on remote branch"
 	@echo " make clean - remove unneeded files and clean charmcraft environment"
 	@echo " make build - build the charm"
-	@echo " make proof - run charm proof"
-	@echo " make release - run clean, build and proof target and upload charm to channel"
+	@echo " make release - run clean, build and upload charm"
 	@echo " make lint - run flake8, black --check and isort --check"
 	@echo " make reformat - run black and isort and reformat files"
 	@echo " make unittests - run the tests defined in the unittest subdirectory"
@@ -49,7 +46,6 @@ clean:
 	@echo "Cleaning files"
 	@git clean -ffXd -e '!.idea' -e '!.vscode'
 	@echo "Cleaning existing build"
-	@rm -rf ${CHARM_BUILD_DIR}/${CHARM_NAME}
 	@rm -rf ${PROJECTPATH}/${CHARM_NAME}*.charm
 	@echo "Cleaning charmcraft"
 	@charmcraft clean
@@ -59,15 +55,10 @@ build: clean
 	@charmcraft -v pack ${BUILD_ARGS}
 	@bash -c ./rename.sh
 
-proof: build
-	@echo "Running charm proof"
-	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@charm proof ${CHARM_BUILD_DIR}/${CHARM_NAME}
 
-release: proof
+release: build
 	@echo "Releasing charm to ${RELEASE_CHANNEL} channel"
-	@charmcraft upload nrpe.charm --release ${RELEASE_CHANNEL}
+	@charmcraft upload ${CHARM_NAME}.charm --release ${RELEASE_CHANNEL}
 
 lint:
 	@echo "Running lint checks"
@@ -85,8 +76,8 @@ functional: build
 	@echo "Executing functional tests using built charm at ${PROJECTPATH}"
 	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
 
-test: lint proof unittests functional
+test: lint unittests functional
 	@echo "Tests completed for charm ${CHARM_NAME}."
 
 # The targets below don't depend on a file
-.PHONY: help dev-environment pre-commit submodules submodules-update clean build lint reformat proof unittests functional
+.PHONY: help dev-environment pre-commit submodules submodules-update clean build lint reformat unittests functional
