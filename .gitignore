@@ -1,8 +1,14 @@
 .jujuignore
 .vscode/
+.build/
+.tox/
+.venv/
 build/
 env/
 venv/
 src/__pycache__/
-tests/__pycache__/
-apt-mirror.charm
+tests/unit/__pycache__/
+*.charm
+.coverage
+report/
+.pytest_cache
