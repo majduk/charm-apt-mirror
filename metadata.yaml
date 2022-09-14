@@ -9,10 +9,6 @@ tags:
 - "mirror"
 - "security"
 - "apt"
-series:
-- "bionic"
-- "focal"
 provides:
   publish:
     interface: "web-publish"
-
