@@ -16,4 +16,3 @@ provides:
   publish:
     interface: "web-publish"
 
-
