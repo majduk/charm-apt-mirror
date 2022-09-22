@@ -59,11 +59,10 @@ class TestCharm(unittest.TestCase):
         harness.charm._stored.config = default_config
         action_event = Mock()
         harness.charm._on_update_status(action_event)
-        assert harness.model.unit.status == BlockedStatus('Last sync: Thu Jan  1 00:00:01 1970 '
-                                                          'not published')
         assert harness.model.unit.status == BlockedStatus(
             "Last sync: Thu Jan  1 00:00:01 1970 " "not published"
         )
+
     @patch("os.path.islink")
     @patch("os.readlink")
     def test_update_status_published(self, os_readlink, os_path_islink):
