@@ -83,7 +83,7 @@ Full list of available snapshots can be obtained by running:
 ```
 juju run-action --wait apt-mirror/0 list-snapshots
 ```
-Currently published snapshot is shown in `juju status`. 
+Currently published snapshot is shown in `juju status`.
 
 Repository can be synchronized with the upstream multiple times and multiple snapshots can be created. It's possible to expose any arbitrary snapshot, making it possible to fine tune the packages available to the repository cilents.
 
