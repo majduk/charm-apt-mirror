@@ -1,0 +1,19 @@
+import logging
+
+import pytest
+
+log = logging.getLogger(__name__)
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--series",
+        type=str,
+        default="jammy",
+        help="Set the series for the machine units.",
+    )
+
+
+@pytest.fixture
+def series(request):
+    return request.config.getoption("--series")

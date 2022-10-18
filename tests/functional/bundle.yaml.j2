@@ -1,0 +1,19 @@
+series: {{ series }}
+machines:
+  "0":
+applications:
+  apt-mirror:
+    charm: {{ charm }}
+    num_units: 1
+    to:
+      - "0"
+  nginx:
+    charm: nginx
+    num_units: 1
+    to:
+      - "0"
+
+relations:
+- - nginx
+  - apt-mirror
+
