@@ -72,7 +72,7 @@ unittests:
 	@echo "Running unit tests"
 	@tox -e unit -- ${UNIT_ARGS}
 
-functional: build
+functional:
 	@echo "Executing functional tests using built charm at ${PROJECTPATH}"
 	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
 
