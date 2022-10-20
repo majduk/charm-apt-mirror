@@ -51,7 +51,7 @@ class AptMirrorCharm(CharmBase):
         publish_path = "{}/publish".format(self._stored.config["base-path"])
         event.relation.data[self.model.unit].update({"path": publish_path})
 
-    def _on_update_status(self, _):
+    def _update_status(self):
         published_snapshot = self._get_published_snapshot()
         if published_snapshot:
             self.model.unit.status = ActiveStatus(
@@ -66,6 +66,9 @@ class AptMirrorCharm(CharmBase):
                 )
             else:
                 self.model.unit.status = BlockedStatus("Packages not synchronized")
+
+    def _on_update_status(self, _):
+        self._update_status()
 
     def _on_install(self, _):
         subprocess.check_output(["apt", "install", "-y", "apt-mirror"])
@@ -99,6 +102,7 @@ class AptMirrorCharm(CharmBase):
             and self._stored.config["cron-schedule"] != "None"  # noqa: W503
         ):
             self._setup_cron_job(self._stored.config)
+        self._update_status()
 
     def _on_synchronize_action(self, event):
         logger.info("Syncing packages")
@@ -111,7 +115,7 @@ class AptMirrorCharm(CharmBase):
         except subprocess.CalledProcessError as e:
             logger.info("Error {}".format(e.output))
             event.fail(e.output)
-            return
+        self._update_status()
 
     def _on_create_snapshot_action(self, event):
         snapshot_name = self._get_snapshot_name()
@@ -142,11 +146,13 @@ class AptMirrorCharm(CharmBase):
                 os.makedirs(dst_root, exist_ok=True)
                 shutil.copytree(src_dists, dst_dists)
                 logger.info("{} -> {}".format(src_dists, dst_dists))
+        self._update_status()
 
     def _on_delete_snapshot_action(self, event):
         snapshot = event.params["name"]
         logger.info("Delete snapshot {}".format(snapshot))
         shutil.rmtree("{}/{}".format(self._stored.config["base-path"], snapshot))
+        self._update_status()
 
     def _on_list_snapshots_action(self, event):
         snapshots = []
@@ -168,6 +174,7 @@ class AptMirrorCharm(CharmBase):
             os.unlink(publish_path)
         os.symlink(snapshot_path, publish_path)
         event.set_results({name: publish_path})
+        self._update_status()
 
     def _render_config(self, config):
         with open("templates/mirror.list.j2") as f:
