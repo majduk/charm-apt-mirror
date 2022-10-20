@@ -1,19 +1,29 @@
 series: {{ series }}
+
 machines:
   "0":
+  "1":
+
 applications:
   apt-mirror:
     charm: {{ charm }}
     num_units: 1
     to:
       - "0"
+    options:
+      mirror-list: |-
+        deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
   nginx:
     charm: nginx
     num_units: 1
     to:
       - "0"
+  client:
+    charm: ubuntu
+    num_units: 1
+    to:
+      - "1"
 
 relations:
 - - nginx
   - apt-mirror
-
