@@ -14,15 +14,32 @@ from ops.testing import Harness
 from charm import AptMirrorCharm
 
 
-class TestCharm(unittest.TestCase):
-    def default_config(self):
-        return {
-            "mirror-list": "deb http://{}/a\ndeb http://{}/b".format(uuid4(), uuid4()),
-            "base-path": str(uuid4()),
-            "architecture": str(uuid4()),
-            "threads": random.randint(10, 20),
-        }
+def get_default_charm_configs():
+    return {
+        "mirror-list": "deb http://{}/a\ndeb http://{}/b".format(uuid4(), uuid4()),
+        "base-path": str(uuid4()),
+        "architecture": str(uuid4()),
+        "threads": random.randint(10, 20),
+        "use-proxy": True,
+        "strip-mirror-name": False,
+        "strip-mirror-path": None,
+    }
 
+
+class BaseTest(unittest.TestCase):
+    def setUp(self):
+        self.harness = Harness(AptMirrorCharm)
+        self.harness.begin()
+        # we need to have this to sync up the charm state: i.e. the
+        # _stored.config
+        with patch("builtins.open", new_callable=mock_open):
+            self.harness.charm._on_config_changed(Mock())
+
+    def tearDown(self):
+        self.harness.cleanup()
+
+
+class TestCharm(BaseTest):
     def mock_repo_directory_tree(self, path, host, h_path, repo, c):
         return (
             ["{}/{}/{}/{}".format(path, host, h_path, repo), ["{}".format(n)], n]
@@ -32,14 +49,10 @@ class TestCharm(unittest.TestCase):
     @patch("os.path.islink")
     def test_update_status_not_synced(self, os_path_islink):
         os_path_islink.return_value = False
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        harness.charm._stored.config = default_config
-        action_event = Mock()
-        harness.charm._on_update_status(action_event)
-        assert harness.model.unit.status == BlockedStatus("Packages not synchronized")
+        self.harness.charm._on_update_status(Mock())
+        self.assertEqual(
+            self.harness.model.unit.status, BlockedStatus("Packages not synchronized")
+        )
 
     @patch("os.path.islink")
     @patch("os.path.isdir")
@@ -52,71 +65,46 @@ class TestCharm(unittest.TestCase):
             st_mtime = 1
 
         os_stat.return_value = MockStat()
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        harness.charm._stored.config = default_config
-        action_event = Mock()
-        harness.charm._on_update_status(action_event)
-        assert harness.model.unit.status == BlockedStatus(
-            "Last sync: Thu Jan  1 00:00:01 1970 " "not published"
+        self.harness.charm._on_update_status(Mock())
+        self.assertEqual(
+            self.harness.model.unit.status,
+            BlockedStatus("Last sync: Thu Jan  1 00:00:01 1970 " "not published"),
         )
 
     @patch("os.path.islink")
     @patch("os.readlink")
     def test_update_status_published(self, os_readlink, os_path_islink):
+        snapshot_name = str(uuid4())
         os_path_islink.return_value = True
-        snapshot_name = uuid4()
         os_readlink.return_value = "/tmp/{}".format(snapshot_name)
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        harness.charm._stored.config = default_config
-        action_event = Mock()
-        harness.charm._on_update_status(action_event)
-        assert harness.model.unit.status == ActiveStatus(
-            "Publishes: {}".format(snapshot_name)
+        self.harness.charm._on_update_status(Mock())
+        self.assertEqual(
+            self.harness.model.unit.status,
+            ActiveStatus("Publishes: {}".format(snapshot_name)),
         )
 
     @patch("builtins.open", new_callable=mock_open)
     def test_publish_relation_joined(self, mock_open_call):
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        default_config = self.default_config()
-        self.assertEqual(harness.charm._stored.config, {})
-        harness.update_config(default_config)
-        relation_id = harness.add_relation("publish", "webserver")
-        harness.add_relation_unit(relation_id, "webserver/0")
-        assert harness.get_relation_data(relation_id, harness._unit_name) == {
-            "path": "{}/publish".format(default_config["base-path"])
-        }
+        relation_id = self.harness.add_relation("publish", "webserver")
+        self.harness.add_relation_unit(relation_id, "webserver/0")
+        self.assertEqual(
+            self.harness.get_relation_data(relation_id, self.harness._unit_name),
+            {"path": "{}/publish".format(self.harness.model.config["base-path"])},
+        )
 
     @patch("subprocess.check_output")
-    def test_install(self, mock_subproc):
-        process_mock = Mock()
-        mock_subproc.return_value = process_mock
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        action_event = Mock()
-        harness.charm._on_install(action_event)
-        self.assertTrue(mock_subproc.called)
-        assert mock_subproc.call_args == call(["apt", "install", "-y", "apt-mirror"])
+    def test_install(self, mock_subprocess_check_output):
+        self.harness.charm._on_install(Mock())
+        mock_subprocess_check_output.assert_called_with(
+            ["apt", "install", "-y", "apt-mirror"]
+        )
 
     @patch("builtins.open", new_callable=mock_open)
     def test_cron_schedule_set(self, mock_open_call):
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
         schedule = uuid4()
-        default_config = {
-            "cron-schedule": schedule,
-        }
-        self.assertEqual(harness.charm._stored.config, {})
-        harness.update_config(default_config)
+        self.harness.update_config({"cron-schedule": schedule})
         mock_open_call.assert_called_with(
-            "/etc/cron.d/{}".format(harness.charm.model.app.name), "w"
+            "/etc/cron.d/{}".format(self.harness.charm.model.app.name), "w"
         )
         mock_open_call.return_value.write.assert_called_with(
             "{} root apt-mirror\n".format(schedule)
@@ -126,13 +114,11 @@ class TestCharm(unittest.TestCase):
         with open("templates/mirror.list.j2") as f:
             t = f.read()
         mock_open_call = mock_open(read_data=t)
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        self.assertEqual(harness.charm._stored.config, {})
         with patch("builtins.open", mock_open_call):
-            harness.update_config(default_config)
+            url = "http://archive.ubuntu.com/ubuntu"
+            opts = "bionic main restricted universe multiverse"
+            self.harness.update_config({"mirror-list": "deb {} {}".format(url, opts)})
+            default_config = self.harness.model.config
         mock_open_call.assert_called_with("/etc/apt/mirror.list", "wb")
         mock_open_call.return_value.write.assert_called_once_with(
             "set base_path         {base-path}\n"
@@ -157,13 +143,9 @@ class TestCharm(unittest.TestCase):
         with open("templates/mirror.list.j2") as f:
             t = f.read()
         mock_open_call = mock_open(read_data=t)
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        self.assertEqual(harness.charm._stored.config, {})
         with patch("builtins.open", mock_open_call):
-            harness.update_config(default_config)
+            self.harness.update_config({"use-proxy": True})
+            default_config = self.harness.model.config
         mock_open_call.assert_called_with("/etc/apt/mirror.list", "wb")
         mock_open_call.return_value.write.assert_called_once_with(
             "set base_path         {base-path}\n"
@@ -191,14 +173,9 @@ class TestCharm(unittest.TestCase):
         with open("templates/mirror.list.j2") as f:
             t = f.read()
         mock_open_call = mock_open(read_data=t)
-        harness = Harness(AptMirrorCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-        default_config = self.default_config()
-        default_config["use-proxy"] = False
-        self.assertEqual(harness.charm._stored.config, {})
         with patch("builtins.open", mock_open_call):
-            harness.update_config(default_config)
+            self.harness.update_config({"use-proxy": False})
+            default_config = self.harness.model.config
         mock_open_call.assert_called_with("/etc/apt/mirror.list", "wb")
         mock_open_call.return_value.write.assert_called_once_with(
             "set base_path         {base-path}\n"
@@ -215,15 +192,12 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("subprocess.check_output")
-    def test_synchronize_action(self, mock_subproc):
-        process_mock = Mock()
-        mock_subproc.return_value = process_mock
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        action_event = Mock()
-        harness.charm._on_synchronize_action(action_event)
-        self.assertTrue(mock_subproc.called)
-        assert mock_subproc.call_args == call(["apt-mirror"], stderr=-2)
+    def test_synchronize_action(self, mock_subprocess_check_output):
+        self.harness.charm._on_synchronize_action(Mock())
+        self.assertTrue(mock_subprocess_check_output.called)
+        self.assertEqual(
+            mock_subprocess_check_output.call_args, call(["apt-mirror"], stderr=-2)
+        )
 
     @patch("os.walk")
     @patch("shutil.copytree")
@@ -234,14 +208,18 @@ class TestCharm(unittest.TestCase):
         self, os_makedirs, os_symlink, os_path_exists, shutil_copytree, os_walk
     ):
 
+        with patch("builtins.open", new_callable=mock_open):
+            self.harness.update_config(
+                {
+                    "strip-mirror-name": False,
+                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                }
+            )
+        default_config = self.harness.model.config
+
         rand_subdir = random.randint(10, 100)
-        default_config = self.default_config()
         upstream_path = "{}".format(uuid4())
-        default_config["strip-mirror-name"] = False
-        # splitting the lines is handled by config-changed. This hook is not ran here
-        # hence it is needed to handle the splitting manually here.
-        default_config["mirror-list"] = default_config["mirror-list"].splitlines()
-        mirror_url = default_config["mirror-list"][0].split()[1]
+        mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
         mirror_path = "{}/mirror".format(default_config["base-path"])
         os_walk.side_effect = iter(
@@ -256,47 +234,50 @@ class TestCharm(unittest.TestCase):
             ]
         )
         os_path_exists.return_value = False
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
+
         snapshot_name = uuid4()
-        harness.charm._get_snapshot_name.return_value = snapshot_name
-        action_event = Mock()
-        harness.charm._on_create_snapshot_action(action_event)
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._get_snapshot_name.return_value = snapshot_name
+        self.harness.charm._on_create_snapshot_action(Mock())
         self.assertTrue(os_symlink.called)
         self.assertTrue(os_makedirs.called)
         self.assertTrue(shutil_copytree.called)
-        assert os_symlink.call_args == call(
-            "{}/{}/{}/{}/{}/pool".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/{}/pool".format(
-                default_config["base-path"],
-                snapshot_name,
-                mirror_host,
-                upstream_path,
-                rand_subdir,
+        self.assertEqual(
+            os_symlink.call_args,
+            call(
+                "{}/{}/{}/{}/{}/pool".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/{}/pool".format(
+                    default_config["base-path"],
+                    snapshot_name,
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
             ),
         )
-        assert shutil_copytree.call_args == call(
-            "{}/{}/{}/{}/{}/dists".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/{}/dists".format(
-                default_config["base-path"],
-                snapshot_name,
-                mirror_host,
-                upstream_path,
-                rand_subdir,
+        self.assertEqual(
+            shutil_copytree.call_args,
+            call(
+                "{}/{}/{}/{}/{}/dists".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/{}/dists".format(
+                    default_config["base-path"],
+                    snapshot_name,
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
             ),
         )
 
@@ -308,14 +289,18 @@ class TestCharm(unittest.TestCase):
     def test_create_snapshot_action_strip_mirrors(
         self, os_makedirs, os_symlink, os_path_exists, shutil_copytree, os_walk
     ):
+        with patch("builtins.open", new_callable=mock_open):
+            self.harness.update_config(
+                {
+                    "strip-mirror-name": True,
+                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                }
+            )
+        default_config = self.harness.model.config
+
         rand_subdir = random.randint(10, 100)
-        default_config = self.default_config()
         upstream_path = "{}".format(uuid4())
-        default_config["strip-mirror-name"] = True
-        # splitting the lines is handled by config-changed. This hook is not ran here
-        # hence it is needed to handle the splitting manually here.
-        default_config["mirror-list"] = default_config["mirror-list"].splitlines()
-        mirror_url = default_config["mirror-list"][0].split()[1]
+        mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
         mirror_path = "{}/mirror".format(default_config["base-path"])
         os_walk.side_effect = iter(
@@ -330,39 +315,48 @@ class TestCharm(unittest.TestCase):
             ]
         )
         os_path_exists.return_value = False
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
+
         snapshot_name = uuid4()
-        harness.charm._get_snapshot_name.return_value = snapshot_name
-        action_event = Mock()
-        harness.charm._on_create_snapshot_action(action_event)
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._get_snapshot_name.return_value = snapshot_name
+        self.harness.charm._on_create_snapshot_action(Mock())
         self.assertTrue(os_symlink.called)
         self.assertTrue(os_makedirs.called)
         self.assertTrue(shutil_copytree.called)
-        assert os_symlink.call_args == call(
-            "{}/{}/{}/{}/{}/pool".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/pool".format(
-                default_config["base-path"], snapshot_name, upstream_path, rand_subdir
+        self.assertEqual(
+            os_symlink.call_args,
+            call(
+                "{}/{}/{}/{}/{}/pool".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/pool".format(
+                    default_config["base-path"],
+                    snapshot_name,
+                    upstream_path,
+                    rand_subdir,
+                ),
             ),
         )
-        assert shutil_copytree.call_args == call(
-            "{}/{}/{}/{}/{}/dists".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/dists".format(
-                default_config["base-path"], snapshot_name, upstream_path, rand_subdir
+        self.assertEqual(
+            shutil_copytree.call_args,
+            call(
+                "{}/{}/{}/{}/{}/dists".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/dists".format(
+                    default_config["base-path"],
+                    snapshot_name,
+                    upstream_path,
+                    rand_subdir,
+                ),
             ),
         )
 
@@ -374,15 +368,19 @@ class TestCharm(unittest.TestCase):
     def test_create_snapshot_action_strip_path(
         self, os_makedirs, os_symlink, os_path_exists, shutil_copytree, os_walk
     ):
-        rand_subdir = random.randint(10, 100)
-        default_config = self.default_config()
         upstream_path = "{}".format(uuid4())
-        default_config["strip-mirror-name"] = False
-        default_config["strip-mirror-path"] = "/{}".format(upstream_path)
-        # splitting the lines is handled by config-changed. This hook is not ran here
-        # hence it is needed to handle the splitting manually here.
-        default_config["mirror-list"] = default_config["mirror-list"].splitlines()
-        mirror_url = default_config["mirror-list"][0].split()[1]
+        with patch("builtins.open", new_callable=mock_open):
+            self.harness.update_config(
+                {
+                    "strip-mirror-name": False,
+                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                    "strip-mirror-path": "/{}".format(upstream_path),
+                }
+            )
+        default_config = self.harness.model.config
+
+        rand_subdir = random.randint(10, 100)
+        mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
         mirror_path = "{}/mirror".format(default_config["base-path"])
         os_walk.side_effect = iter(
@@ -397,39 +395,42 @@ class TestCharm(unittest.TestCase):
             ]
         )
         os_path_exists.return_value = False
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
+
         snapshot_name = uuid4()
-        harness.charm._get_snapshot_name.return_value = snapshot_name
-        action_event = Mock()
-        harness.charm._on_create_snapshot_action(action_event)
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._get_snapshot_name.return_value = snapshot_name
+        self.harness.charm._on_create_snapshot_action(Mock())
         self.assertTrue(os_symlink.called)
         self.assertTrue(os_makedirs.called)
         self.assertTrue(shutil_copytree.called)
-        assert os_symlink.call_args == call(
-            "{}/{}/{}/{}/{}/pool".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/pool".format(
-                default_config["base-path"], snapshot_name, mirror_host, rand_subdir
+        self.assertEqual(
+            os_symlink.call_args,
+            call(
+                "{}/{}/{}/{}/{}/pool".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/pool".format(
+                    default_config["base-path"], snapshot_name, mirror_host, rand_subdir
+                ),
             ),
         )
-        assert shutil_copytree.call_args == call(
-            "{}/{}/{}/{}/{}/dists".format(
-                default_config["base-path"],
-                "mirror",
-                mirror_host,
-                upstream_path,
-                rand_subdir,
-            ),
-            "{}/{}/{}/{}/dists".format(
-                default_config["base-path"], snapshot_name, mirror_host, rand_subdir
+        self.assertEqual(
+            shutil_copytree.call_args,
+            call(
+                "{}/{}/{}/{}/{}/dists".format(
+                    default_config["base-path"],
+                    "mirror",
+                    mirror_host,
+                    upstream_path,
+                    rand_subdir,
+                ),
+                "{}/{}/{}/{}/dists".format(
+                    default_config["base-path"], snapshot_name, mirror_host, rand_subdir
+                ),
             ),
         )
 
@@ -440,49 +441,54 @@ class TestCharm(unittest.TestCase):
 
         rand_n = random.randint(10, 100)
         os_walk.return_value = a2g([rand_n])
-        default_config = self.default_config()
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
         action_event = Mock()
-        harness.charm._on_list_snapshots_action(action_event)
-        assert action_event.set_results.call_args == call(
-            {"snapshots": ["snapshot-{}".format(rand_n)]}
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._on_list_snapshots_action(action_event)
+        self.assertEqual(
+            action_event.set_results.call_args,
+            call({"snapshots": ["snapshot-{}".format(rand_n)]}),
         )
 
     @patch("shutil.rmtree")
     def test_delete_snapshot_action(self, shutil_rmtree):
-        default_config = self.default_config()
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
         snapshot_name = uuid4()
-        action_event = Mock(params={"name": snapshot_name})
-        harness.charm._on_delete_snapshot_action(action_event)
-        assert shutil_rmtree.call_args == call(
-            "{}/{}".format(default_config["base-path"], snapshot_name)
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._on_delete_snapshot_action(
+            Mock(params={"name": snapshot_name})
+        )
+        self.assertEqual(
+            shutil_rmtree.call_args,
+            call("{}/{}".format(self.harness.model.config["base-path"], snapshot_name)),
         )
 
     @patch("os.path.isdir")
     @patch("os.path.islink")
+    @patch("os.path.basename")
     @patch("os.symlink")
+    @patch("os.readlink")
     @patch("os.unlink")
     def test_publish_snapshot_action_success(
-        self, os_unlink, os_symlink, os_path_islink, os_path_isdir
+        self,
+        os_unlink,
+        os_readlink,
+        os_symlink,
+        os_path_basename,
+        os_path_islink,
+        os_path_isdir,
     ):
-        default_config = self.default_config()
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
         snapshot_name = uuid4()
-        action_event = Mock(params={"name": snapshot_name})
-        harness.charm._on_publish_snapshot_action(action_event)
-        assert os_symlink.call_args == call(
-            "{}/{}".format(default_config["base-path"], snapshot_name),
-            "{}/publish".format(default_config["base-path"]),
+        os_path_islink.return_value = True
+        base_path = self.harness.model.config["base-path"]
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._on_publish_snapshot_action(
+            Mock(params={"name": snapshot_name})
+        )
+        self.assertEqual(
+            os_symlink.call_args,
+            call(
+                "{}/{}".format(base_path, snapshot_name),
+                "{}/publish".format(base_path),
+            ),
         )
 
     @patch("os.path.isdir")
@@ -492,13 +498,9 @@ class TestCharm(unittest.TestCase):
     def test_publish_snapshot_action_fail(
         self, os_unlink, os_symlink, os_path_islink, os_path_isdir
     ):
-        os_path_isdir.return_value = False
-        default_config = self.default_config()
-        harness = Harness(AptMirrorCharm)
-        harness.begin()
-        harness.charm._stored.config = default_config
-        harness.charm._get_snapshot_name = Mock()
         snapshot_name = uuid4()
+        os_path_isdir.return_value = False
         action_event = Mock(params={"name": snapshot_name})
-        harness.charm._on_publish_snapshot_action(action_event)
-        assert action_event.fail.call_args == call("Snapshot does not exist")
+        self.harness.charm._get_snapshot_name = Mock()
+        self.harness.charm._on_publish_snapshot_action(action_event)
+        self.assertEqual(action_event.fail.call_args, call("Snapshot does not exist"))
