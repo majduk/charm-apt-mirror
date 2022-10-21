@@ -104,7 +104,7 @@ class TestCharm(BaseTest):
 
     @patch("builtins.open", new_callable=mock_open)
     def test_cron_schedule_set(self, mock_open_call):
-        schedule = uuid4()
+        schedule = str(uuid4())
         self.harness.update_config({"cron-schedule": schedule})
         mock_open_call.assert_called_with(
             "/etc/cron.d/{}".format(self.harness.charm.model.app.name), "w"
