@@ -9,10 +9,13 @@ from unittest.mock import Mock, call, mock_open, patch
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import ops.testing
 from ops.model import ActiveStatus, BlockedStatus
 from ops.testing import Harness
 
 from charm import AptMirrorCharm
+
+ops.testing.SIMULATE_CAN_CONNECT = True
 
 
 def get_default_charm_configs():
