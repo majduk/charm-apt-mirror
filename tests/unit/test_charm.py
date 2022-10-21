@@ -3,6 +3,7 @@
 
 import os
 import random
+import time
 import unittest
 from unittest.mock import Mock, call, mock_open, patch
 from urllib.parse import urlparse
@@ -68,7 +69,9 @@ class TestCharm(BaseTest):
         self.harness.charm._on_update_status(Mock())
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Last sync: Thu Jan  1 00:00:01 1970 " "not published"),
+            BlockedStatus(
+                "Last sync: {} not published".format(time.ctime(os_stat.st_mtime))
+            ),
         )
 
     @patch("os.path.islink")
