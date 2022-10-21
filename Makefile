@@ -73,7 +73,7 @@ unittests:
 	@tox -e unit -- ${UNIT_ARGS}
 
 functional:
-	@echo "Executing functional tests using built charm at ${PROJECTPATH}"
+	@echo "Executing functional tests(charm will be build during functional tests)"
 	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
 
 test: lint unittests functional
