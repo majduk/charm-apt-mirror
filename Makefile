@@ -74,7 +74,7 @@ unittests:
 
 functional:
 	@echo "Executing functional tests(charm will be build during functional tests)"
-	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
+	@tox -e func -- ${FUNC_ARGS}
 
 test: lint unittests functional
 	@echo "Tests completed for charm ${CHARM_NAME}."
