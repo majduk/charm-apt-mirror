@@ -30,7 +30,6 @@ async def test_build_and_deploy(ops_test, series):
     ), "apt-mirror did not show correct block message."
 
 
-@pytest.mark.usefixtures("apt_mirror_unit", "configs", "helper")
 class TestCharmActions:
     @pytest.fixture
     def base_path(self, configs):
@@ -110,7 +109,6 @@ class TestCharmActions:
         assert results.get("return-code") == 0
 
 
-@pytest.mark.usefixtures("apt_mirror_app", "apt_mirror_unit", "helper")
 class TestCharm:
     async def test_setup_cron_schedule(
         self, ops_test, apt_mirror_app, apt_mirror_unit, helper
