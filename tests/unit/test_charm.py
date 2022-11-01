@@ -27,6 +27,7 @@ def get_default_charm_configs():
         "use-proxy": True,
         "strip-mirror-name": False,
         "strip-mirror-path": None,
+        "cron-schedule": str(uuid4()),
     }
 
 
@@ -37,6 +38,7 @@ class BaseTest(unittest.TestCase):
         # we need to have this to sync up the charm state: i.e. the
         # _stored.config
         with patch("builtins.open", new_callable=mock_open):
+            self.harness.update_config(get_default_charm_configs())
             self.harness.charm._on_config_changed(Mock())
 
     def tearDown(self):
@@ -114,6 +116,17 @@ class TestCharm(BaseTest):
         )
         mock_open_call.return_value.write.assert_called_with(
             "{} root apt-mirror\n".format(schedule)
+        )
+
+    @patch("os.unlink")
+    @patch("os.path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_cron_schedule_remove(self, mock_open_call, os_path_exists, os_unlink):
+        schedule = "None"
+        self.harness.update_config({"cron-schedule": schedule})
+        os_path_exists.return_value = True
+        os_unlink.assert_called_with(
+            "/etc/cron.d/{}".format(self.harness.charm.model.app.name)
         )
 
     def test_apt_mirror_list(self):
