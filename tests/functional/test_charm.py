@@ -136,12 +136,21 @@ class TestCharm:
         # restore configs
         await apt_mirror_app.reset_config(["cron-schedule"])
 
-    @pytest.mark.skip
-    async def test_remove_cron_schedule(self):
+    async def test_remove_cron_schedule(
+        self, ops_test, apt_mirror_app, apt_mirror_unit, helper
+    ):
         """Test remove cron schedule config option."""
-        # currently the charm does not support remove cron schedule for
-        # apt-mirror.
-        pass
+        cron_schedule = "None"
+        await apt_mirror_app.set_config({"cron-schedule": cron_schedule})
+        await ops_test.model.wait_for_idle(apps=["apt-mirror"])
+
+        results = await helper.run_wait(
+            apt_mirror_unit, "ls /etc/cron.d/{}".format(apt_mirror_app.name)
+        )
+        assert results.get("return-code") != 0
+
+        # restore configs
+        await apt_mirror_app.reset_config(["cron-schedule"])
 
     async def test_client_access(
         self, ops_test, apt_mirror_app, apt_mirror_unit, helper
