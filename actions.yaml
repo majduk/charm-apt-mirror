@@ -13,7 +13,8 @@ delete-snapshot:
     name:
       description: "Name of the snapshot to delete."
       type: string
-      default: ""
+  required:
+    - name
 publish-snapshot:
   description: Publish snapshot.
   params:
