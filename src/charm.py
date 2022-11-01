@@ -74,14 +74,12 @@ class AptMirrorCharm(CharmBase):
         subprocess.check_output(["apt", "install", "-y", "apt-mirror"])
 
     def _on_config_changed(self, _):
-        for key in self.model.config:
-            if key not in self._stored.config:
-                value = self.model.config[key]
-                self._stored.config[key] = value
-            if self.model.config[key] != self._stored.config[key]:
-                value = self.model.config[key]
+        change_set = set()
+        for key, value in self.model.config.items():
+            if key not in self._stored.config or self._stored.config[key] != value:
                 logger.info("Setting {} to: {}".format(key, value))
                 self._stored.config[key] = value
+                change_set.add(key)
         if "use-proxy" in self._stored.config and self._stored.config["use-proxy"]:
             if "JUJU_CHARM_HTTP_PROXY" in os.environ:
                 self._stored.config["http_proxy"] = os.environ["JUJU_CHARM_HTTP_PROXY"]
@@ -96,12 +94,25 @@ class AptMirrorCharm(CharmBase):
         self._stored.config["mirror-list"] = self.model.config[
             "mirror-list"
         ].splitlines()
-        self._render_config(self._stored.config)
-        if (
-            "cron-schedule" in self._stored.config
-            and self._stored.config["cron-schedule"] != "None"  # noqa: W503
-        ):
-            self._setup_cron_job(self._stored.config)
+
+        # use change set to support single dispatch of a config change.
+        template_change_set = set(
+            {
+                "base-path",
+                "architecture",
+                "threads",
+                "http_proxy",
+                "https_proxy",
+                "mirror-list",
+            }
+        )
+        if len(change_set & template_change_set) > 0:
+            self._render_config(self._stored.config)
+        if "cron-schedule" in change_set:
+            if self._stored.config["cron-schedule"] == "None":
+                self._remove_cron_job()
+            else:
+                self._setup_cron_job(self._stored.config)
         self._update_status()
 
     def _on_synchronize_action(self, event):
@@ -194,6 +205,11 @@ class AptMirrorCharm(CharmBase):
     def _setup_cron_job(self, config):
         with open("/etc/cron.d/{}".format(self.model.app.name), "w") as f:
             f.write("{} root apt-mirror\n".format(config["cron-schedule"]))
+
+    def _remove_cron_job(self):
+        cron_job = "/etc/cron.d/{}".format(self.model.app.name)
+        if os.path.exists(cron_job):
+            os.unlink(cron_job)
 
     def _get_snapshot_name(self):
         return "snapshot-{}".format(datetime.now().strftime("%Y%m%d%H%M%S"))
