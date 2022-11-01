@@ -456,8 +456,8 @@ class TestCharm(BaseTest):
         )
 
     @patch("shutil.rmtree")
-    def test_delete_snapshot_action(self, shutil_rmtree):
-        snapshot_name = uuid4()
+    def test_delete_snapshot_action_success(self, shutil_rmtree):
+        snapshot_name = "snapshot-19700101"
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._on_delete_snapshot_action(
             Mock(params={"name": snapshot_name})
@@ -466,6 +466,16 @@ class TestCharm(BaseTest):
             shutil_rmtree.call_args,
             call("{}/{}".format(self.harness.model.config["base-path"], snapshot_name)),
         )
+
+    @patch("shutil.rmtree")
+    def test_delete_snapshot_action_failure(self, shutil_rmtree):
+        for snapshot_name in ["", str(uuid4())]:
+            with self.subTest(name=snapshot_name):
+                self.harness.charm._get_snapshot_name = Mock()
+                self.harness.charm._on_delete_snapshot_action(
+                    Mock(params={"name": snapshot_name})
+                )
+                shutil_rmtree.assert_not_called()
 
     @patch("os.path.isdir")
     @patch("os.path.islink")
