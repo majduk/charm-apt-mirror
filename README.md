@@ -83,7 +83,7 @@ Full list of available snapshots can be obtained by running:
 ```
 juju run-action --wait apt-mirror/0 list-snapshots
 ```
-Currently published snapshot is shown in `juju status`. 
+Currently published snapshot is shown in `juju status`.
 
 Repository can be synchronized with the upstream multiple times and multiple snapshots can be created. It's possible to expose any arbitrary snapshot, making it possible to fine tune the packages available to the repository cilents.
 
@@ -91,15 +91,17 @@ The repository allows also specifying a Cron job via `cron-schedule` option, to 
 
 ## Developing
 
-Create and activate a virtualenv,
-and install the development requirements,
+Create a virtual environment and activate it
 
-    virtualenv -p python3 venv
-    source venv/bin/activate
-    pip install -r requirements-dev.txt
+    make dev-environment
+    source .venv/bin/activate
 
 ## Testing
 
-Just run `run_tests`:
+Run lint tests:
 
-    ./run_tests
+    make lint
+
+Run unit tests:
+
+    make unittests

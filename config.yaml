@@ -7,15 +7,15 @@ options:
       deb http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
     description: A list of repositories to mirror.
     type: string
-  base-path: 
+  base-path:
     default: /var/spool/apt-mirror
     description: Repository base path.
     type: string
-  architecture: 
+  architecture:
     default: amd64
     description: Architecture(s) to mirror.
     type: string
-  threads: 
+  threads:
     default: 20
     description: Number of download threads.
     type: int
