@@ -122,7 +122,7 @@ class TestCharm(BaseTest):
     @patch("os.path.exists")
     @patch("builtins.open", new_callable=mock_open)
     def test_cron_schedule_remove(self, mock_open_call, os_path_exists, os_unlink):
-        schedule = "None"
+        schedule = ""
         self.harness.update_config({"cron-schedule": schedule})
         os_path_exists.return_value = True
         os_unlink.assert_called_with(

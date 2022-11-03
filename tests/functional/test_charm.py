@@ -140,7 +140,7 @@ class TestCharm:
         self, ops_test, apt_mirror_app, apt_mirror_unit, helper
     ):
         """Test remove cron schedule config option."""
-        cron_schedule = "None"
+        cron_schedule = ""
         await apt_mirror_app.set_config({"cron-schedule": cron_schedule})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
 

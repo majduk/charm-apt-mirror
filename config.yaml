@@ -20,10 +20,10 @@ options:
     description: Number of download threads.
     type: int
   cron-schedule:
-    default: None
+    default: ""
     description: |
       The cron tab time entry for automatic synchronisation. You can turn off
-      this feature by setting this value to "None".
+      this feature by setting this value to "".
     type: string
   use-proxy:
     default: True

@@ -96,20 +96,18 @@ class AptMirrorCharm(CharmBase):
         ].splitlines()
 
         # use change set to support single dispatch of a config change.
-        template_change_set = set(
-            {
-                "base-path",
-                "architecture",
-                "threads",
-                "http_proxy",
-                "https_proxy",
-                "mirror-list",
-            }
-        )
+        template_change_set = {
+            "base-path",
+            "architecture",
+            "threads",
+            "http_proxy",
+            "https_proxy",
+            "mirror-list",
+        }
         if len(change_set & template_change_set) > 0:
             self._render_config(self._stored.config)
         if "cron-schedule" in change_set:
-            if self._stored.config["cron-schedule"] == "None":
+            if self._stored.config["cron-schedule"] == "":
                 self._remove_cron_job()
             else:
                 self._setup_cron_job(self._stored.config)
