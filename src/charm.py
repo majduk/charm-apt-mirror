@@ -73,6 +73,20 @@ class AptMirrorCharm(CharmBase):
     def _on_install(self, _):
         subprocess.check_output(["apt", "install", "-y", "apt-mirror"])
 
+    def _patch_config(self, current_config):
+        config = {}
+        proxy_settings = {
+            "JUJU_CHARM_HTTP_PROXY": "http_proxy",
+            "JUJU_CHARM_HTTPS_PROXY": "https_proxy",
+        }
+        if "use-proxy" in current_config and current_config["use-proxy"]:
+            for env, proxy in proxy_settings.items():
+                if env in os.environ:
+                    config[proxy] = os.environ[env]
+        config["use-proxy"] = set(proxy_settings.values()) & set(config)
+        config["mirror-list"] = current_config["mirror-list"].splitlines()
+        return config
+
     def _on_config_changed(self, _):
         change_set = set()
         for key, value in self.model.config.items():
@@ -80,20 +94,10 @@ class AptMirrorCharm(CharmBase):
                 logger.info("Setting {} to: {}".format(key, value))
                 self._stored.config[key] = value
                 change_set.add(key)
-        if "use-proxy" in self._stored.config and self._stored.config["use-proxy"]:
-            if "JUJU_CHARM_HTTP_PROXY" in os.environ:
-                self._stored.config["http_proxy"] = os.environ["JUJU_CHARM_HTTP_PROXY"]
-                self._stored.config["use_proxy"] = True
-            if "JUJU_CHARM_HTTPS_PROXY" in os.environ:
-                self._stored.config["https_proxy"] = os.environ[
-                    "JUJU_CHARM_HTTPS_PROXY"
-                ]
-                self._stored.config["use_proxy"] = True
-        else:
-            self._stored.config["use_proxy"] = False
-        self._stored.config["mirror-list"] = self.model.config[
-            "mirror-list"
-        ].splitlines()
+
+        patched_config = self._patch_config(self._stored.config)
+        change_set.update(patched_config)
+        self._stored.config.update(patched_config)
 
         # use change set to support single dispatch of a config change.
         template_change_set = {

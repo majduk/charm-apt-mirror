@@ -8,7 +8,7 @@ set run_postmirror    0
 set nthreads          {{ opts['threads'] }}
 set limit_rate        100m
 set _tilde            0
-{% if opts['use_proxy'] -%}
+{% if opts['use-proxy'] -%}
 set use_proxy         on
 {% endif -%}
 {% if opts['http_proxy'] -%}
