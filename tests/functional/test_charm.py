@@ -184,12 +184,12 @@ deb https://{0} bionic main\
         client_unit = ops_test.model.applications["client"].units[0]
         # Note these can be changed if you changed the test url and mirror_list
         test_apts = """\
-deb http://{0}/apt-mirror/{1} focal
-deb http://{0}/apt-mirror/{1} bionic\
+deb http://{0}/apt-mirror/{1} focal main
+deb http://{0}/apt-mirror/{1} bionic main\
 """.format(
             nginx_public_ip, url
         )
-        await client_unit.run("echo '{}' > /etc/apt/source.list".format(test_apts))
+        await client_unit.run("echo '{}' > /etc/apt/sources.list".format(test_apts))
         # Add public key; this is only required for this particular mirror-list
         # option. The magic number: "4b9a81747a207542" is coming from
         # https://launchpad.net/~canonical-bootstack/+archive/ubuntu/public
