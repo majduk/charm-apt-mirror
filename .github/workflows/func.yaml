@@ -7,7 +7,7 @@ on:
 jobs:
   func:
     name: Functional tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: true
       matrix:
