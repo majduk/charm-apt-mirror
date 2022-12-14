@@ -1,0 +1,6 @@
+Archive: eoan
+Version: 19.10
+Component: main
+Origin: FAKE-PPA
+Label: FAKE PPA
+Architecture: amd64

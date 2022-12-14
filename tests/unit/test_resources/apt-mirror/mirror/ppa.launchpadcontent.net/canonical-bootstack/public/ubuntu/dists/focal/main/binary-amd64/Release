@@ -1,0 +1,6 @@
+Archive: focal
+Version: 20.04
+Component: main
+Origin: FAKE-LP-PPA-canonical-bootstack-public
+Label: FAKE Bootstack Public PPA
+Architecture: amd64

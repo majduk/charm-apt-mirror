@@ -1,8 +1,11 @@
 # Copyright 2020 Ubuntu
 # See LICENSE file for licensing details.
 
+import datetime
 import os
+import pathlib
 import random
+import tempfile
 import time
 import unittest
 from unittest.mock import Mock, call, mock_open, patch
@@ -212,6 +215,8 @@ class TestCharm(BaseTest):
 
     @patch("subprocess.check_output")
     def test_synchronize_action(self, mock_subprocess_check_output):
+        self.harness.charm._check_packages = Mock()
+        self.harness.charm._check_packages.return_value = [], "0.0 bytes"
         self.harness.charm._on_synchronize_action(Mock())
         self.assertTrue(mock_subprocess_check_output.called)
         self.assertEqual(
@@ -453,20 +458,22 @@ class TestCharm(BaseTest):
             ),
         )
 
-    @patch("os.walk")
-    def test_list_snapshots_action(self, os_walk):
-        def a2g(x):
-            return ([n, ["snapshot-{}".format(n)]] for n in x)
-
-        rand_n = random.randint(10, 100)
-        os_walk.return_value = a2g([rand_n])
-        action_event = Mock()
-        self.harness.charm._get_snapshot_name = Mock()
-        self.harness.charm._on_list_snapshots_action(action_event)
-        self.assertEqual(
-            action_event.set_results.call_args,
-            call({"snapshots": ["snapshot-{}".format(rand_n)]}),
+    def test_list_snapshots_action(self):
+        snapshot_name = "snapshot-{}".format(
+            datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         )
+        snapshot = Mock()
+        snapshot.name = snapshot_name
+        for test_input, expected in [([snapshot], [snapshot_name]), ([], [])]:
+            with self.subTest():
+                action_event = Mock()
+                self.harness.charm._get_snapshot_name = Mock()
+                self.harness.charm._list_snapshots = Mock()
+                self.harness.charm._list_snapshots.return_value = test_input
+                self.harness.charm._on_list_snapshots_action(action_event)
+                action_event.set_results.assert_called_once_with(
+                    {"snapshots": expected}
+                )
 
     @patch("shutil.rmtree")
     def test_delete_snapshot_action_success(self, shutil_rmtree):
@@ -533,3 +540,68 @@ class TestCharm(BaseTest):
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._on_publish_snapshot_action(action_event)
         self.assertEqual(action_event.fail.call_args, call("Snapshot does not exist"))
+
+    def test_list_snapshots_not_empty(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            base_path = pathlib.Path(tmpdirname)
+            with patch("builtins.open", new_callable=mock_open):
+                self.harness.update_config(
+                    {
+                        "base-path": str(base_path),
+                    }
+                )
+            expected_snapshots = [
+                base_path / "snapshot-1970010{}".format(i) for i in range(3)
+            ]
+            for snapshot in expected_snapshots:
+                snapshot.mkdir(parents=True)
+            returned_snapshots = self.harness.charm._list_snapshots()
+            self.assertEqual(sorted(expected_snapshots), sorted(returned_snapshots))
+
+    def test_list_snapshots_empty(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            base_path = pathlib.Path(tmpdirname)
+            with patch("builtins.open", new_callable=mock_open):
+                self.harness.update_config(
+                    {
+                        "base-path": str(base_path),
+                    }
+                )
+            expected_snapshots = []
+            returned_snapshots = self.harness.charm._list_snapshots()
+            self.assertEqual(expected_snapshots, sorted(returned_snapshots))
+
+    def test_get_snapshot_name(self):
+        snapshot_name = self.harness.charm._get_snapshot_name()
+        part_0 = snapshot_name.split("-")[0]
+        part_1 = snapshot_name.split("-")[1]
+        self.assertEqual(part_0, "snapshot")
+        self.assertTrue(datetime.datetime.strptime(part_1, "%Y%m%d%H%M%S"))
+
+    def test_check_packages_action(self):
+        packages_to_be_removed = [Mock() for i in range(3)]
+        self.harness.charm._check_packages = Mock()
+        self.harness.charm._check_packages.return_value = [
+            packages_to_be_removed,
+            "0.0 bytes",
+        ]
+        action_event = Mock()
+        self.harness.charm._on_check_packages_action(action_event)
+        action_event.set_results.assert_called_once()
+
+    def test_clean_up_packages_action_false(self):
+        action_event = Mock(params={"confirm": False})
+        self.harness.charm._on_clean_up_packages_action(action_event)
+        action_event.set_results.assert_called_once()
+
+    def test_clean_up_packages_action_true(self):
+        packages_to_be_removed = [Mock() for i in range(3)]
+        self.harness.charm._check_packages = Mock()
+        self.harness.charm._check_packages.return_value = [
+            packages_to_be_removed,
+            "0.0 bytes",
+        ]
+        action_event = Mock(params={"confirm": True})
+        self.harness.charm._on_clean_up_packages_action(action_event)
+        for package in packages_to_be_removed:
+            package.unlink.assert_called_once()

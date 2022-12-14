@@ -9,7 +9,7 @@ A small tool that provides ability to mirror any parts (or even all) of Debian a
 ### Deployment
 The charm can be deployed using `Juju`:
 ```
-juju deploy cs:apt-mirror
+juju deploy apt-mirror
 ```
 
 The charm can handle arbitrary set of upstream DEB sources via setting `mirror-list`. Example below shows a bundle with this charm configured to mirror multiple Ubuntu series (Bionic and Focal) in a single repository and expose this repository via NGINX. Additionally PPAs and external repositories can be mirrored.
@@ -20,13 +20,13 @@ machines:
     series: bionic
 services:
   nginx:
-    charm: cs:~majduk/nginx
+    charm: nginx
     expose: true
     num_units: 1
     to:
     - '0'
   apt-mirror:
-    charm: cs:~majduk/apt-mirror
+    charm: apt-mirror
     expose: true
     num_units: 1
     options:
@@ -85,7 +85,19 @@ juju run-action --wait apt-mirror/0 list-snapshots
 ```
 Currently published snapshot is shown in `juju status`.
 
+Sometimes the packages will become outdated or no longer needed by any snapshot, one can check if any packages can be safely removed by running:
+```
+juju run-action --wait apt-mirror/0 check-packages
+```
+
+If there are some outdated packages, we can clean them up by running:
+```
+juju run-action --wait apt-mirror/0 clean-up-packages confirm=true
+```
+
 Repository can be synchronized with the upstream multiple times and multiple snapshots can be created. It's possible to expose any arbitrary snapshot, making it possible to fine tune the packages available to the repository cilents.
+
+Unnecessary packages are automatically clean up during the synchronization. However, when snapshots are deleted, it is possible that some packages will no longer be needed. In this case, one can check if there are any unneeded packages that can be remove using `check-packages` action. After reviewing the outputs from the `check-packages` action. One can proceed to remove those packages with `clean-up-packages` actions.
 
 The repository allows also specifying a Cron job via `cron-schedule` option, to regularily, automatically sync to the upstream to make sure the repository tracks upstream at a certain delay. To expose the latest packages to the clients, snapshot still needs to be created and published.
 
@@ -98,6 +110,10 @@ Create a virtual environment and activate it
 
 ## Testing
 
+Run complete tests
+
+    make tests
+
 Run lint tests:
 
     make lint
@@ -105,3 +121,7 @@ Run lint tests:
 Run unit tests:
 
     make unittests
+
+Run functional tests:
+
+    make functional

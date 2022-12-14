@@ -2,7 +2,11 @@
 # See LICENSE file for licensing details.
 #
 synchronize:
-  description: Synchronize the packages.
+  description: |
+    Pull the .deb packages from the upstream based on the config "mirror-list",
+    and synchronize the package metadata (index files) with the upstream. In
+    addition, unreferenced packages will be automatically cleaned up without
+    confirmation; also see check-packages and clean-up-packages actions.
 create-snapshot:
   description: Create timestemped snapshot of current package metadata.
 list-snapshots:
@@ -22,3 +26,19 @@ publish-snapshot:
       description: "Name of the snapshot to publish."
       type: string
       default: ""
+check-packages:
+  description: |
+    Check and report the packages that are no longer referenced in the existing
+    snapshots and the mirror path.
+clean-up-packages:
+  description: |
+    Remove the packages reported in the check-packages action. You must provide
+    a parameter 'confirm=true' to actually perform the action; 'confirm=false'
+    will abort the action. If you are not sure, please use `check-packages`
+    action to view what pacakges can be removed.
+  params:
+    confirm:
+      description: "Confirm that you really want to perform this action."
+      type: boolean
+  required:
+    - confirm

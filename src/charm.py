@@ -2,6 +2,7 @@
 # Copyright 2020 Ubuntu
 # See LICENSE file for licensing details.
 
+import json
 import logging
 import os
 import re
@@ -9,6 +10,7 @@ import shutil
 import subprocess
 import time
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import urlparse
 
 from jinja2 import Template
@@ -16,6 +18,8 @@ from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
+
+from utils import convert_bytes, find_packages_by_indices, locate_package_indices
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,12 @@ class AptMirrorCharm(CharmBase):
         )
         self.framework.observe(
             self.on.delete_snapshot_action, self._on_delete_snapshot_action
+        )
+        self.framework.observe(
+            self.on.check_packages_action, self._on_check_packages_action
+        )
+        self.framework.observe(
+            self.on.clean_up_packages_action, self._on_clean_up_packages_action
         )
         self.framework.observe(
             self.on.publish_relation_joined, self._on_publish_relation_joined
@@ -117,14 +127,101 @@ class AptMirrorCharm(CharmBase):
                 self._setup_cron_job(self._stored.config)
         self._update_status()
 
+    def _check_packages(self):
+        # Find all packages that are defined in the "Packages" file of the
+        # mirror_path and snapshot-*. These packages are still in referenced
+        # and should not be removed.
+        indexed_packages = set()
+        snapshot_paths = self._list_snapshots()
+        mirror_path = "{}/mirror".format(self._stored.config["base-path"])
+        for path in snapshot_paths + [mirror_path]:
+            for base, indices in locate_package_indices(path):
+                indexed_packages |= set(find_packages_by_indices(indices, base=base))
+
+        # Find all .deb packages that exist in the mirror_path. It might
+        # contains some packages that are not longer being referenced. We can
+        # clean up those packages using the clean-up-packages action.
+        existing_packages = set(
+            [p.absolute() for p in Path(mirror_path).rglob("**/*.deb")]
+        )
+
+        # Main calculation
+        packages_to_be_removed = existing_packages - indexed_packages
+        freed_up_space = 0
+        for p in packages_to_be_removed:
+            freed_up_space += p.stat().st_size
+        return packages_to_be_removed, convert_bytes(freed_up_space)
+
+    def _on_check_packages_action(self, event):
+        packages_to_be_removed, freed_up_space = self._check_packages()
+        event.set_results(
+            {
+                "message": (
+                    "The following packages can be removed since they have no "
+                    "reference in the current index and indices in all the snapshots."
+                ),
+                "count": len(packages_to_be_removed),
+                "packages": json.dumps(
+                    [str(p) for p in packages_to_be_removed], indent=4
+                ),
+                "total-size": freed_up_space,
+            }
+        )
+
+    def _on_clean_up_packages_action(self, event):
+        if not event.params["confirm"]:
+            logger.info(
+                "clean up action not performed because the user did not confirm "
+                "the action."
+            )
+            event.set_results(
+                {"message": "Aborted! Please confirm your action with 'confirm=true'."}
+            )
+            return
+
+        start = time.time()
+        logger.info("Cleaning up unreferenced packages")
+        packages_to_be_removed, freed_up_space = self._check_packages()
+        prefix_message = "Clean up completed without errors."
+        for package in packages_to_be_removed:
+            try:
+                package.unlink()
+                logger.info("Removed {}".format(package))
+            except Exception as e:
+                logger.error(e)
+                prefix_message = (
+                    "Clean up completed with errors, "
+                    "please refer to juju's log for details."
+                )
+        elapsed = time.time() - start
+        logger.info("Clean up complete, took {}s".format(elapsed))
+
+        event.set_results(
+            {
+                "message": "{} Freed up {}".format(prefix_message, freed_up_space),
+            }
+        )
+
     def _on_synchronize_action(self, event):
         logger.info("Syncing packages")
         try:
             start = time.time()
+            mirror_path = "{}/mirror".format(self._stored.config["base-path"])
+            for dists in Path(mirror_path).rglob("**/dists"):
+                shutil.rmtree(dists)
             subprocess.check_output(["apt-mirror"], stderr=subprocess.STDOUT)
+            packages_to_be_removed, freed_up_space = self._check_packages()
+            for package in packages_to_be_removed:
+                package.unlink()
             elapsed = time.time() - start
-            logger.info("Sync complete, took {}s".format(elapsed))
-            event.set_results({"time": elapsed})
+            logger.info(
+                "Sync complete, took {}s and freed up {}".format(
+                    elapsed, freed_up_space
+                )
+            )
+            event.set_results(
+                {"time": elapsed, "message": "Freed up {}".format(freed_up_space)}
+            )
         except subprocess.CalledProcessError as e:
             logger.info("Error {}".format(e.output))
             event.fail(e.output)
@@ -175,11 +272,11 @@ class AptMirrorCharm(CharmBase):
         shutil.rmtree("{}/{}".format(self._stored.config["base-path"], snapshot))
         self._update_status()
 
+    def _list_snapshots(self):
+        return list(Path(self._stored.config["base-path"]).glob("snapshot-*"))
+
     def _on_list_snapshots_action(self, event):
-        snapshots = []
-        for directory in next(os.walk(self._stored.config["base-path"]))[1]:
-            if directory.startswith("snapshot-"):
-                snapshots.append(directory)
+        snapshots = [p.name for p in self._list_snapshots()]
         logger.info("List snapshots {}".format(snapshots))
         event.set_results({"snapshots": snapshots})
 
