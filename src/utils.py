@@ -3,6 +3,9 @@
 
 """A collection of utility functions."""
 
+from bz2 import open as bopen
+from gzip import open as gopen
+from lzma import open as lopen
 from os import readlink
 from pathlib import Path
 
@@ -83,16 +86,10 @@ def _get_opener(path):
     """Return appropriate opener to open an index file."""
     extension = Path(path).suffix
     if extension == ".gz":
-        from gzip import open as gopen
-
         return gopen
     elif extension == ".bz2":
-        from bz2 import open as bopen
-
         return bopen
     elif extension == ".lzma" or extension == ".xz":
-        from lzma import open as lopen
-
         return lopen
     else:
         return open
