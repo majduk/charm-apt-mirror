@@ -321,9 +321,10 @@ deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal mai
 
         # Let's try to delete the snapshot and check if there are
         # still some unreferenced packages remain.
+        await apt_mirror_unit.run("rm -rf {}/snapshot-*".format(base_path))
         results = await helper.run_action_wait(apt_mirror_unit, "check-packages")
         count = int(results.get("count"))
-        assert count == 0
+        assert count > 0
 
     async def test_outdated_packages_version_changed(
         self, ops_test, apt_mirror_app, apt_mirror_unit, base_path, helper
