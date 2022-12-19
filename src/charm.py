@@ -266,12 +266,7 @@ class AptMirrorCharm(CharmBase):
     def _on_delete_snapshot_action(self, event):
         snapshot = event.params["name"]
         if not snapshot.startswith("snapshot-"):
-            event.set_results(
-                {
-                    "ReturnCode": 1,
-                    "Stderr": "Invalid snapshot name: {}".format(snapshot),
-                }
-            )
+            event.fail("Invalid snapshot name: {}".format(snapshot))
             return
         logger.info("Delete snapshot {}".format(snapshot))
         shutil.rmtree("{}/{}".format(self._stored.config["base-path"], snapshot))

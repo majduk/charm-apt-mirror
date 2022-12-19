@@ -85,10 +85,11 @@ class TestCharmActions:
         assert results.get("return-code") == 0
 
     @pytest.mark.parametrize(
-        "name,expected_code", [("snapshot-deleteme", 0), ("random-name", 1)]
+        "name,expected_status",
+        [("snapshot-deleteme", "completed"), ("random-name", "failed")],
     )
     async def test_delete_snapshot_action(
-        self, name, expected_code, apt_mirror_unit, base_path, helper
+        self, name, expected_status, apt_mirror_unit, base_path, helper
     ):
         """Test delete_snapshot action."""
         create_cmd = "mkdir {}/{}".format(base_path, name)
@@ -97,12 +98,11 @@ class TestCharmActions:
         results = await helper.run_wait(apt_mirror_unit, create_cmd)
         assert results.get("return-code") == 0
 
-        results = await helper.run_action_wait(
-            apt_mirror_unit, "delete-snapshot", name=name
-        )
-        assert results.get("return-code") == expected_code
+        action = await apt_mirror_unit.run_action("delete-snapshot", name=name)
+        await action.wait()
+        assert action.status == expected_status
 
-        if expected_code == 1:
+        if expected_status == "failed":
             results = await helper.run_wait(apt_mirror_unit, check_cmd)
             assert results.get("return-code") == 0
         else:
