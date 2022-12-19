@@ -84,6 +84,22 @@ class AptMirrorCharm(CharmBase):
         subprocess.check_output(["apt", "install", "-y", "apt-mirror"])
 
     def _patch_config(self, current_config):
+        """Patch configuration options.
+
+        Some config options need to be obtained from the input config options.
+        Therefore, this internal function processes the input configuration
+        option, and adds additional options for the charm; the added options
+        should be connected with "_", for example, http_proxy and https_proxy.
+
+        Args:
+            current_config: Current config options.
+
+        Returns:
+            config: Additional configuration options
+
+        Raises:
+            ValueError: If `_validate_mirror_list` failed.
+        """
         config = {}
         proxy_settings = {
             "JUJU_CHARM_HTTP_PROXY": "http_proxy",
@@ -109,6 +125,7 @@ class AptMirrorCharm(CharmBase):
         try:
             patched_config = self._patch_config(self._stored.config)
         except ValueError as err:
+            # if _validate_mirror_list failed, set the unit to blocked state.
             self.model.unit.status = BlockedStatus(str(err))
         else:
             change_set.update(patched_config)
