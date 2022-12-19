@@ -186,6 +186,56 @@ class TestCharm:
         # restore configs
         await apt_mirror_app.reset_config(["cron-schedule"])
 
+    async def test_bad_mirror_list_options(
+        self, ops_test, apt_mirror_app, apt_mirror_unit, base_path, helper
+    ):
+        """Test bad mirror-list config option.
+
+        Test if the input mirror-list is not a valid string containing: <deb
+        uri distribution [component1] [component2] [...]>. Note that it does
+        not verify each part, such as <uri>, is valid or not.
+        """
+        # Clean up
+        await apt_mirror_unit.run("rm -rf {}/mirror/*".format(base_path))
+        await apt_mirror_unit.run("rm -rf {}/publish".format(base_path))
+        await apt_mirror_unit.run("rm -rf {}/snapshot-*".format(base_path))
+
+        # Create bad mirror-list option - 1
+        mirror_list = "deb"
+        await apt_mirror_app.set_config({"mirror-list": mirror_list})
+        await ops_test.model.wait_for_idle(apps=["apt-mirror"], status="blocked")
+        app = ops_test.model.applications["apt-mirror"]
+        status_msg = app.units[0].workload_status_message
+        assert bool(
+            re.search("^An error .* option.$", status_msg)
+        ), "apt-mirror did not show correct block message."
+
+        # Create bad mirror-list option - 2
+        mirror_list = "deb fake-uri"
+        await apt_mirror_app.set_config({"mirror-list": mirror_list})
+        await ops_test.model.wait_for_idle(apps=["apt-mirror"], status="blocked")
+        app = ops_test.model.applications["apt-mirror"]
+        status_msg = app.units[0].workload_status_message
+        assert bool(
+            re.search("^An error .* option.$", status_msg)
+        ), "apt-mirror did not show correct block message."
+
+        # Fix the mirror-list option
+        url = "ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu"
+        mirror_list = """\
+deb https://{0} focal main
+deb https://{0} bionic main\
+""".format(
+            url
+        )
+        await apt_mirror_app.set_config({"mirror-list": mirror_list})
+        await ops_test.model.wait_for_idle(apps=["apt-mirror"], status="blocked")
+        app = ops_test.model.applications["apt-mirror"]
+        status_msg = app.units[0].workload_status_message
+        assert bool(
+            re.search("^Last sync: .* not published$", status_msg)
+        ), "apt-mirror did not show correct block message."
+
     async def test_client_access(
         self, ops_test, apt_mirror_app, apt_mirror_unit, base_path, helper
     ):

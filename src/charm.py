@@ -94,7 +94,9 @@ class AptMirrorCharm(CharmBase):
                 if env in os.environ:
                     config[proxy] = os.environ[env]
         config["use-proxy"] = set(proxy_settings.values()) & set(config)
-        config["mirror-list"] = current_config["mirror-list"].splitlines()
+        config["mirror-list"] = self._validate_mirror_list(
+            current_config["mirror-list"]
+        )
         return config
 
     def _on_config_changed(self, _):
@@ -104,28 +106,31 @@ class AptMirrorCharm(CharmBase):
                 logger.info("Setting {} to: {}".format(key, value))
                 self._stored.config[key] = value
                 change_set.add(key)
+        try:
+            patched_config = self._patch_config(self._stored.config)
+        except ValueError as err:
+            self.model.unit.status = BlockedStatus(str(err))
+        else:
+            change_set.update(patched_config)
+            self._stored.config.update(patched_config)
 
-        patched_config = self._patch_config(self._stored.config)
-        change_set.update(patched_config)
-        self._stored.config.update(patched_config)
-
-        # use change set to support single dispatch of a config change.
-        template_change_set = {
-            "base-path",
-            "architecture",
-            "threads",
-            "http_proxy",
-            "https_proxy",
-            "mirror-list",
-        }
-        if len(change_set & template_change_set) > 0:
-            self._render_config(self._stored.config)
-        if "cron-schedule" in change_set:
-            if self._stored.config["cron-schedule"] == "":
-                self._remove_cron_job()
-            else:
-                self._setup_cron_job(self._stored.config)
-        self._update_status()
+            # use change set to support single dispatch of a config change.
+            template_change_set = {
+                "base-path",
+                "architecture",
+                "threads",
+                "http_proxy",
+                "https_proxy",
+                "mirror-list",
+            }
+            if len(change_set & template_change_set) > 0:
+                self._render_config(self._stored.config)
+            if "cron-schedule" in change_set:
+                if self._stored.config["cron-schedule"] == "":
+                    self._remove_cron_job()
+                else:
+                    self._setup_cron_job(self._stored.config)
+            self._update_status()
 
     def _check_packages(self):
         # Find all packages that are defined in the "Packages" file of the
@@ -312,6 +317,20 @@ class AptMirrorCharm(CharmBase):
 
     def _get_snapshot_name(self):
         return "snapshot-{}".format(datetime.now().strftime("%Y%m%d%H%M%S"))
+
+    def _validate_mirror_list(self, mirror_list):
+        validated_mirror_list = []
+        for mirror in mirror_list.splitlines():
+            mirror_parts = mirror.split()
+            if mirror == "":
+                continue
+            if len(mirror_parts) < 3:
+                raise ValueError(
+                    "An error has occurred when parsing 'mirror-list'. Please check "
+                    "your 'mirror-list' option."
+                )
+            validated_mirror_list.append(mirror)
+        return validated_mirror_list
 
     def _mirror_names(self):
         return [

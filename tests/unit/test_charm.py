@@ -23,7 +23,7 @@ ops.testing.SIMULATE_CAN_CONNECT = True
 
 def get_default_charm_configs():
     return {
-        "mirror-list": "deb http://{}/a\ndeb http://{}/b".format(uuid4(), uuid4()),
+        "mirror-list": "deb http://{0}/a {0}\ndeb http://{0}/b {0}".format(uuid4()),
         "base-path": str(uuid4()),
         "architecture": str(uuid4()),
         "threads": random.randint(10, 20),
@@ -54,6 +54,34 @@ class TestCharm(BaseTest):
             ["{}/{}/{}/{}".format(path, host, h_path, repo), ["{}".format(n)], n]
             for n in c
         )
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_bad_mirror_list(self, mock_open_call):
+        bad_case_1 = """\
+deb
+"""
+        bad_case_2 = """\
+deb fake-uri
+"""
+        for test_case in [bad_case_1, bad_case_2]:
+            with self.assertRaisesRegex(ValueError, "^An error .* option.$"):
+                self.harness.charm._validate_mirror_list(test_case)
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_good_mirror_list(self, mock_open_call):
+        good_mirror_list = """\
+deb fake-uri fake-distro fake-comp1
+
+deb fake-uri fake-distro fake-comp1 fake-comp2
+deb fake-uri fake-distro\
+"""
+        expected = [
+            "deb fake-uri fake-distro fake-comp1",
+            "deb fake-uri fake-distro fake-comp1 fake-comp2",
+            "deb fake-uri fake-distro",
+        ]
+        returned = self.harness.charm._validate_mirror_list(good_mirror_list)
+        self.assertEqual(sorted(returned), sorted(expected))
 
     @patch("os.path.islink")
     def test_update_status_not_synced(self, os_path_islink):
@@ -236,7 +264,7 @@ class TestCharm(BaseTest):
             self.harness.update_config(
                 {
                     "strip-mirror-name": False,
-                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                    "mirror-list": "deb http://{0}/a {0}".format(uuid4()),
                 }
             )
         default_config = self.harness.model.config
@@ -317,7 +345,7 @@ class TestCharm(BaseTest):
             self.harness.update_config(
                 {
                     "strip-mirror-name": True,
-                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                    "mirror-list": "deb http://{0}/a {0}".format(uuid4()),
                 }
             )
         default_config = self.harness.model.config
@@ -397,7 +425,7 @@ class TestCharm(BaseTest):
             self.harness.update_config(
                 {
                     "strip-mirror-name": False,
-                    "mirror-list": "deb http://{}/a".format(uuid4()),
+                    "mirror-list": "deb http://{0}/a {0}".format(uuid4()),
                     "strip-mirror-path": "/{}".format(upstream_path),
                 }
             )
