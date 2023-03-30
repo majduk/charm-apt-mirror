@@ -259,7 +259,6 @@ deb fake-uri fake-distro\
     def test_create_snapshot_action(
         self, os_makedirs, os_symlink, os_path_exists, shutil_copytree, os_walk
     ):
-
         with patch("builtins.open", new_callable=mock_open):
             self.harness.update_config(
                 {
