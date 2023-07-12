@@ -11,17 +11,29 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import List, Optional
 from urllib.parse import urlparse
 
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-from utils import convert_bytes, find_packages_by_indices, locate_package_indices
+from utils import (
+    clean_dists,
+    clean_packages,
+    convert_bytes,
+    find_packages_by_indices,
+    locate_package_indices,
+)
 
 logger = logging.getLogger(__name__)
+
+TEMPLATE_DIR = Path(__file__).parent.resolve() / "../templates"
+MIRROR_LIST_TEMPLATE = "mirror.list.j2"
+APT_MIRROR_CONFIG = Path("/etc/apt/mirror.list")
 
 
 class AptMirrorCharm(CharmBase):
@@ -141,7 +153,7 @@ class AptMirrorCharm(CharmBase):
                 "mirror-list",
             }
             if len(change_set & template_change_set) > 0:
-                self._render_config(self._stored.config)
+                self._render_config(self._stored.config, APT_MIRROR_CONFIG)
             if "cron-schedule" in change_set:
                 if self._stored.config["cron-schedule"] == "":
                     self._remove_cron_job()
@@ -204,50 +216,96 @@ class AptMirrorCharm(CharmBase):
         start = time.time()
         logger.info("Cleaning up unreferenced packages")
         packages_to_be_removed, freed_up_space = self._check_packages()
-        prefix_message = "Clean up completed without errors."
-        for package in packages_to_be_removed:
-            try:
-                package.unlink()
-                logger.info("Removed {}".format(package))
-            except Exception as e:
-                logger.error(e)
-                prefix_message = (
-                    "Clean up completed with errors, "
-                    "please refer to juju's log for details."
-                )
+        cleanup_result = clean_packages(packages_to_be_removed)
         elapsed = time.time() - start
-        logger.info("Clean up complete, took {}s".format(elapsed))
 
+        if cleanup_result is True:
+            message = "Clean up completed without errors."
+        else:
+            message = (
+                "Clean up completed with errors, please refer to juju's log for "
+                "details."
+            )
+
+        logger.info("Clean up complete, took %ds", elapsed)
         event.set_results(
             {
-                "message": "{} Freed up {}".format(prefix_message, freed_up_space),
+                "time": elapsed,
+                "message": "{} Freed up {} by cleaning {} packages".format(
+                    message, freed_up_space, len(packages_to_be_removed)
+                ),
             }
         )
 
+    def _get_mirrors(self, source: Optional[str] = None) -> List[str]:
+        """Get filtered mirrors."""
+        mirrors = list(self._stored.config.get("mirror-list", []))
+        logger.debug("found %d mirrors in charm configuration", len(mirrors))
+        if source:
+            reg_filter = re.compile(source)
+            mirrors = list(filter(reg_filter.search, mirrors))
+
+        return mirrors
+
+    def _create_tmp_apt_mirror_config(self, *mirrors) -> Path:
+        """Create tmp apt_mirror config."""
+        with NamedTemporaryFile(delete=False) as tmp_config:
+            tmp_path = Path(tmp_config.name)
+
+        config = dict(self._stored.config).copy()
+        config["mirror-list"] = mirrors
+        self._render_config(config, tmp_path)
+        return tmp_path
+
     def _on_synchronize_action(self, event):
+        """Perform synchronize action."""
         logger.info("Syncing packages")
+        start = time.time()
+        mirror_filter = event.params.get("source")
+        mirrors = self._get_mirrors(mirror_filter)
+
+        if not mirrors:
+            event.fail(
+                f"No mirror matches the filter `{mirror_filter}` or mirror-list config "
+                "options is empty. Please check mirror list with "
+                "`juju config apt-mirror mirror-list`"
+            )
+            return
+
         try:
-            start = time.time()
-            mirror_path = "{}/mirror".format(self._stored.config["base-path"])
-            for dists in Path(mirror_path).rglob("**/dists"):
-                shutil.rmtree(dists)
-            subprocess.check_output(["apt-mirror"], stderr=subprocess.STDOUT)
+            if mirror_filter is None:
+                # clean dists only if no filter was applied
+                clean_dists(Path(self._stored.config["base-path"]))
+
+            logger.info(
+                "running apt-mirror for:%s", os.linesep + os.linesep.join(mirrors)
+            )
+            tmp_path = self._create_tmp_apt_mirror_config(*mirrors)
+            subprocess.check_output(
+                ["apt-mirror", str(tmp_path)], stderr=subprocess.STDOUT
+            )
+        except subprocess.CalledProcessError as error:
+            logger.exception(error)
+            event.fail(error.output)
+        except Exception as error:
+            logger.exception(error)
+            event.fail(f"action failed due invalid configuration: {error}")
+        else:
             packages_to_be_removed, freed_up_space = self._check_packages()
-            for package in packages_to_be_removed:
-                package.unlink()
+            clean_packages(packages_to_be_removed)
             elapsed = time.time() - start
             logger.info(
-                "Sync complete, took {}s and freed up {}".format(
-                    elapsed, freed_up_space
-                )
+                "Sync complete, took %ss and freed up %s", elapsed, freed_up_space
             )
             event.set_results(
-                {"time": elapsed, "message": "Freed up {}".format(freed_up_space)}
+                {
+                    "time": elapsed,
+                    "message": "Freed up {} by cleaning {} packages".format(
+                        freed_up_space, len(packages_to_be_removed)
+                    ),
+                }
             )
-        except subprocess.CalledProcessError as e:
-            logger.info("Error {}".format(e.output))
-            event.fail(e.output)
-        self._update_status()
+            self._update_status()
 
     def _on_create_snapshot_action(self, event):
         snapshot_name = self._get_snapshot_name()
@@ -311,12 +369,14 @@ class AptMirrorCharm(CharmBase):
         event.set_results({name: publish_path})
         self._update_status()
 
-    def _render_config(self, config):
-        with open("templates/mirror.list.j2") as f:
-            t = Template(f.read())
-        with open("/etc/apt/mirror.list", "wb") as f:
-            b = t.render(opts=config).encode("UTF-8")
-            f.write(b)
+    def _render_config(self, config, apt_mirror_config: Path) -> None:
+        """Render apt_mirror config."""
+        env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
+        template = env.get_template(MIRROR_LIST_TEMPLATE)
+        rendered_config = template.render(opts=config).encode("UTF-8")
+
+        with open(apt_mirror_config, "wb") as file:
+            file.write(rendered_config)
 
     def _setup_cron_job(self, config):
         with open("/etc/cron.d/{}".format(self.model.app.name), "w") as f:

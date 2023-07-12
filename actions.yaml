@@ -7,6 +7,16 @@ synchronize:
     and synchronize the package metadata (index files) with the upstream. In
     addition, unreferenced packages will be automatically cleaned up without
     confirmation; also see check-packages and clean-up-packages actions.
+  params:
+    source:
+      description: |
+        Run synchronize for a specific mirror. This parameter is used as a regular
+        expression to filter the list of mirrors provided by the "mirror-list"
+        configuration option. Leave unset to synchronize all mirrors.
+        The following example synchronizes all mirrors starting with
+        "deb http://ppa.launchpad.net/".
+        `juju run-action apt-mirror/0 -- synchronize source="^deb http://ppa.launchpad.net/.*"`
+      type: string
 create-snapshot:
   description: Create timestemped snapshot of current package metadata.
 list-snapshots:

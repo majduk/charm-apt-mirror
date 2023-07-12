@@ -101,6 +101,26 @@ Unnecessary packages are automatically clean up during the synchronization. Howe
 
 The repository allows also specifying a Cron job via `cron-schedule` option, to regularily, automatically sync to the upstream to make sure the repository tracks upstream at a certain delay. To expose the latest packages to the clients, snapshot still needs to be created and published.
 
+The action `synchronize` supports also parameter source, which run synchronize for a specific
+mirror. This parameter is used as a regular expression to filter the list of mirrors provided
+by the "mirror-list" configuration option. Leave unset to synchronize all mirrors.
+
+The following example synchronizes all mirrors starting with "deb http://ppa.launchpad.net/".
+```bash
+$ juju run-action --wait apt-mirror/0 -- synchronize source="^deb http://ppa.launchpad.net/.*"
+unit-apt-mirror-0:
+  UnitId: apt-mirror/0
+  id: "90"
+  results:
+    message: Freed up 0.0 bytes by cleaning 0 packages
+    time: "4.845958232879639"
+  status: completed
+  timing:
+    completed: 2023-07-10 10:07:13 +0000 UTC
+    enqueued: 2023-07-10 10:07:06 +0000 UTC
+    started: 2023-07-10 10:07:08 +0000 UTC
+```
+
 ## Developing
 
 Create a virtual environment and activate it
