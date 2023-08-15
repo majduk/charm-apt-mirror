@@ -45,27 +45,13 @@ class AptMirrorCharm(CharmBase):
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.synchronize_action, self._on_synchronize_action)
-        self.framework.observe(
-            self.on.create_snapshot_action, self._on_create_snapshot_action
-        )
-        self.framework.observe(
-            self.on.publish_snapshot_action, self._on_publish_snapshot_action
-        )
-        self.framework.observe(
-            self.on.list_snapshots_action, self._on_list_snapshots_action
-        )
-        self.framework.observe(
-            self.on.delete_snapshot_action, self._on_delete_snapshot_action
-        )
-        self.framework.observe(
-            self.on.check_packages_action, self._on_check_packages_action
-        )
-        self.framework.observe(
-            self.on.clean_up_packages_action, self._on_clean_up_packages_action
-        )
-        self.framework.observe(
-            self.on.publish_relation_joined, self._on_publish_relation_joined
-        )
+        self.framework.observe(self.on.create_snapshot_action, self._on_create_snapshot_action)
+        self.framework.observe(self.on.publish_snapshot_action, self._on_publish_snapshot_action)
+        self.framework.observe(self.on.list_snapshots_action, self._on_list_snapshots_action)
+        self.framework.observe(self.on.delete_snapshot_action, self._on_delete_snapshot_action)
+        self.framework.observe(self.on.check_packages_action, self._on_check_packages_action)
+        self.framework.observe(self.on.clean_up_packages_action, self._on_clean_up_packages_action)
+        self.framework.observe(self.on.publish_relation_joined, self._on_publish_relation_joined)
 
         self._stored.set_default(config={})
 
@@ -76,9 +62,7 @@ class AptMirrorCharm(CharmBase):
     def _update_status(self):
         published_snapshot = self._get_published_snapshot()
         if published_snapshot:
-            self.model.unit.status = ActiveStatus(
-                "Publishes: {}".format(published_snapshot)
-            )
+            self.model.unit.status = ActiveStatus("Publishes: {}".format(published_snapshot))
         else:
             path = self._stored.config["base-path"] + "/mirror"
             if os.path.isdir(path):
@@ -122,9 +106,7 @@ class AptMirrorCharm(CharmBase):
                 if env in os.environ:
                     config[proxy] = os.environ[env]
         config["use-proxy"] = set(proxy_settings.values()) & set(config)
-        config["mirror-list"] = self._validate_mirror_list(
-            current_config["mirror-list"]
-        )
+        config["mirror-list"] = self._validate_mirror_list(current_config["mirror-list"])
         return config
 
     def _on_config_changed(self, _):
@@ -175,9 +157,7 @@ class AptMirrorCharm(CharmBase):
         # Find all .deb packages that exist in the mirror_path. It might
         # contains some packages that are not longer being referenced. We can
         # clean up those packages using the clean-up-packages action.
-        existing_packages = set(
-            [p.absolute() for p in Path(mirror_path).rglob("**/*.deb")]
-        )
+        existing_packages = set([p.absolute() for p in Path(mirror_path).rglob("**/*.deb")])
 
         # Main calculation
         packages_to_be_removed = existing_packages - indexed_packages
@@ -195,9 +175,7 @@ class AptMirrorCharm(CharmBase):
                     "reference in the current index and indices in all the snapshots."
                 ),
                 "count": len(packages_to_be_removed),
-                "packages": json.dumps(
-                    [str(p) for p in packages_to_be_removed], indent=4
-                ),
+                "packages": json.dumps([str(p) for p in packages_to_be_removed], indent=4),
                 "total-size": freed_up_space,
             }
         )
@@ -205,8 +183,7 @@ class AptMirrorCharm(CharmBase):
     def _on_clean_up_packages_action(self, event):
         if not event.params["confirm"]:
             logger.info(
-                "clean up action not performed because the user did not confirm "
-                "the action."
+                "clean up action not performed because the user did not confirm the action."
             )
             event.set_results(
                 {"message": "Aborted! Please confirm your action with 'confirm=true'."}
@@ -222,10 +199,7 @@ class AptMirrorCharm(CharmBase):
         if cleanup_result is True:
             message = "Clean up completed without errors."
         else:
-            message = (
-                "Clean up completed with errors, please refer to juju's log for "
-                "details."
-            )
+            message = "Clean up completed with errors, please refer to juju's log for details."
 
         logger.info("Clean up complete, took %ds", elapsed)
         event.set_results(
@@ -277,13 +251,9 @@ class AptMirrorCharm(CharmBase):
                 # clean dists only if no filter was applied
                 clean_dists(Path(self._stored.config["base-path"]))
 
-            logger.info(
-                "running apt-mirror for:%s", os.linesep + os.linesep.join(mirrors)
-            )
+            logger.info("running apt-mirror for:%s", os.linesep + os.linesep.join(mirrors))
             tmp_path = self._create_tmp_apt_mirror_config(*mirrors)
-            subprocess.check_output(
-                ["apt-mirror", str(tmp_path)], stderr=subprocess.STDOUT
-            )
+            subprocess.check_output(["apt-mirror", str(tmp_path)], stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as error:
             logger.exception(error)
             event.fail(error.output)
@@ -294,9 +264,7 @@ class AptMirrorCharm(CharmBase):
             packages_to_be_removed, freed_up_space = self._check_packages()
             clean_packages(packages_to_be_removed)
             elapsed = time.time() - start
-            logger.info(
-                "Sync complete, took %ss and freed up %s", elapsed, freed_up_space
-            )
+            logger.info("Sync complete, took %ss and freed up %s", elapsed, freed_up_space)
             event.set_results(
                 {
                     "time": elapsed,
@@ -310,9 +278,7 @@ class AptMirrorCharm(CharmBase):
     def _on_create_snapshot_action(self, event):
         snapshot_name = self._get_snapshot_name()
         logger.info("Create snapshot {}".format(snapshot_name))
-        snapshot_name_path = "{}/{}".format(
-            self._stored.config["base-path"], snapshot_name
-        )
+        snapshot_name_path = "{}/{}".format(self._stored.config["base-path"], snapshot_name)
         mirror_path = "{}/mirror".format(self._stored.config["base-path"])
         mirrors = self._mirror_names()
         if not os.path.exists(snapshot_name_path):
@@ -406,8 +372,7 @@ class AptMirrorCharm(CharmBase):
 
     def _mirror_names(self):
         return [
-            urlparse(mirror.split()[1]).hostname
-            for mirror in self._stored.config["mirror-list"]
+            urlparse(mirror.split()[1]).hostname for mirror in self._stored.config["mirror-list"]
         ]
 
     def _get_published_snapshot(self):

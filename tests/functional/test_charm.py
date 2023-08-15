@@ -38,9 +38,7 @@ class TestCharmActions:
     def base_path(self, configs):
         return configs.get("base-path").get("value")
 
-    async def test_publish_snapshot_action(
-        self, ops_test, apt_mirror_unit, base_path, helper
-    ):
+    async def test_publish_snapshot_action(self, ops_test, apt_mirror_unit, base_path, helper):
         """Test publish_snapshot action."""
         name = "snapshot-publishme"
         create_cmd = "mkdir -p {}/{}".format(base_path, name)
@@ -50,9 +48,7 @@ class TestCharmActions:
         results = await helper.run_wait(apt_mirror_unit, create_cmd)
         assert results.get("return-code") == 0
 
-        results = await helper.run_action_wait(
-            apt_mirror_unit, "publish-snapshot", name=name
-        )
+        results = await helper.run_action_wait(apt_mirror_unit, "publish-snapshot", name=name)
         await ops_test.model.wait_for_idle(apps=["apt-mirror"], status="active")
         assert results.get("return-code") == 0
 
@@ -63,9 +59,7 @@ class TestCharmActions:
         results = await helper.run_wait(apt_mirror_unit, cleanup_cmd)
         assert results.get("return-code") == 0
 
-    async def test_create_snapshot_action(
-        self, ops_test, apt_mirror_unit, base_path, helper
-    ):
+    async def test_create_snapshot_action(self, ops_test, apt_mirror_unit, base_path, helper):
         """Test create_snapshot action."""
         count_cmd = "ls {} | grep ^snapshot | wc -l".format(base_path)
         cleanup_cmd = "rm -rf {}/snapshot*".format(base_path)
@@ -126,15 +120,11 @@ class TestCharmActions:
 
     async def test_clean_up_packages_action(self, apt_mirror_unit, helper):
         """Test clean up packages action."""
-        results = await helper.run_action_wait(
-            apt_mirror_unit, "clean-up-packages", confirm=False
-        )
+        results = await helper.run_action_wait(apt_mirror_unit, "clean-up-packages", confirm=False)
         assert results.get("return-code") == 0
         assert "Aborted!" in results.get("message")
 
-        results = await helper.run_action_wait(
-            apt_mirror_unit, "clean-up-packages", confirm=True
-        )
+        results = await helper.run_action_wait(apt_mirror_unit, "clean-up-packages", confirm=True)
         assert results.get("return-code") == 0
         assert "Freed up" in results.get("message")
 
@@ -146,9 +136,7 @@ class TestCharm:
     def base_path(self, configs):
         return configs.get("base-path").get("value")
 
-    async def test_setup_cron_schedule(
-        self, ops_test, apt_mirror_app, apt_mirror_unit, helper
-    ):
+    async def test_setup_cron_schedule(self, ops_test, apt_mirror_app, apt_mirror_unit, helper):
         """Test setup cron schedule config option.
 
         Test cron job for automatic synchronization is added.
@@ -160,16 +148,12 @@ class TestCharm:
         results = await helper.run_wait(
             apt_mirror_unit, "cat /etc/cron.d/{}".format(apt_mirror_app.name)
         )
-        assert results.get("stdout").strip() == "{} root apt-mirror".format(
-            cron_schedule
-        )
+        assert results.get("stdout").strip() == "{} root apt-mirror".format(cron_schedule)
 
         # restore configs
         await apt_mirror_app.reset_config(["cron-schedule"])
 
-    async def test_remove_cron_schedule(
-        self, ops_test, apt_mirror_app, apt_mirror_unit, helper
-    ):
+    async def test_remove_cron_schedule(self, ops_test, apt_mirror_app, apt_mirror_unit, helper):
         """Test remove cron schedule config option.
 
         Test cron job for automatic synchronization is removed.

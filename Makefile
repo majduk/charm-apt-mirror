@@ -15,13 +15,14 @@ help:
 	@echo " make help - show this text"
 	@echo " make dev-environment - setup the development environment"
 	@echo " make pre-commit - run pre-commit checks on all the files"
+	@echo " make version - create version file based on the git tag"
 	@echo " make submodules - initialize, fetch, and checkout any nested submodules"
 	@echo " make submodules-update - update submodules to latest changes on remote branch"
 	@echo " make clean - remove unneeded files and clean charmcraft environment"
 	@echo " make build - build the charm"
 	@echo " make release - run clean, build and upload charm"
-	@echo " make lint - run flake8, black --check and isort --check"
-	@echo " make reformat - run black and isort and reformat files"
+	@echo " make lint - run lint checkers"
+	@echo " make reformat - run lint tools to auto format code"
 	@echo " make unittests - run the tests defined in the unittest subdirectory"
 	@echo " make functional - run the tests defined in the functional subdirectory"
 	@echo " make test - run lint, unittests and functional targets"
@@ -33,6 +34,9 @@ dev-environment:
 
 pre-commit:
 	@tox -e pre-commit
+
+version:
+	@git describe --tags --dirty --always --long > version
 
 submodules:
 	@echo "Cloning submodules"
@@ -50,7 +54,7 @@ clean:
 	@echo "Cleaning charmcraft"
 	@charmcraft clean
 
-build: clean
+build: clean version
 	@echo "Building charm"
 	@charmcraft -v pack ${BUILD_ARGS}
 	@bash -c ./rename.sh
@@ -73,11 +77,11 @@ unittests:
 	@tox -e unit -- ${UNIT_ARGS}
 
 functional:
-	@echo "Executing functional tests(charm will be build during functional tests)"
-	@tox -e func -- ${FUNC_ARGS}
+	@echo "Executing functional tests using built charm at ${PROJECTPATH}"
+	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
 
 test: lint unittests functional
 	@echo "Tests completed for charm ${CHARM_NAME}."
 
 # The targets below don't depend on a file
-.PHONY: help dev-environment pre-commit submodules submodules-update clean build lint reformat unittests functional
+.PHONY: help dev-environment pre-commit version submodules submodules-update clean build lint reformat unittests functional

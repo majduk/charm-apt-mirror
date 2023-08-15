@@ -3,13 +3,13 @@
 # within individual charm repos. https://launchpad.net/bootstack-charms-spec
 
 [tool.flake8]
-ignore = ["D100", "D101", "D102", "D103"]
-exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'report']
-max-line-length = 88
+ignore = ["D100", "D101", "D102", "D103", "W503", "W504"]
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report']
+max-line-length = 99
 max-complexity = 10
 
 [tool.black]
-line-length = 88
+line-length = 99
 exclude = '''
 /(
     | .eggs
@@ -17,19 +17,34 @@ exclude = '''
     | .tox
     | .venv
     | .build
+    | lib
     | report
 )/
 '''
 
 [tool.isort]
 profile = "black"
-skip_glob = '''
-/(
-    | .eggs
-    | .git
-    | .tox
-    | .venv
-    | .build
-    | report
-)/
-'''
+line_length = 99
+skip_glob = [
+  ".eggs",
+  ".git",
+  ".tox",
+  ".venv",
+  ".build",
+  "lib",
+  "report"
+]
+
+[tool.coverage.run]
+relative_files = true
+source = ["src"]
+omit = ["tests/**", "docs/**", "templates/**"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.coverage.html]
+directory = "tests/unit/report/html"
+
+[tool.coverage.xml]
+output = "tests/unit/report/coverage.xml"

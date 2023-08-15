@@ -81,13 +81,9 @@ def locate_package_indices(path):
     package_indices = []
     for p, d in zip(pool, dists):
         archive_roots.append(
-            Path(readlink(p)).parent.absolute()
-            if p.is_symlink()
-            else p.parent.absolute()
+            Path(readlink(p)).parent.absolute() if p.is_symlink() else p.parent.absolute()
         )
-        package_indices.append(
-            [sorted(distro.glob("**/Packages*"))[0] for distro in d.glob("*")]
-        )
+        package_indices.append([sorted(distro.glob("**/Packages*"))[0] for distro in d.glob("*")])
     return zip(archive_roots, package_indices)
 
 

@@ -52,10 +52,7 @@ class BaseTest(unittest.TestCase):
 
 class TestCharm(BaseTest):
     def mock_repo_directory_tree(self, path, host, h_path, repo, c):
-        return (
-            ["{}/{}/{}/{}".format(path, host, h_path, repo), ["{}".format(n)], n]
-            for n in c
-        )
+        return (["{}/{}/{}/{}".format(path, host, h_path, repo), ["{}".format(n)], n] for n in c)
 
     @patch("charm.open", new_callable=mock_open)
     def test_bad_mirror_list(self, mock_open_call):
@@ -107,9 +104,7 @@ deb fake-uri fake-distro\
         self.harness.charm._on_update_status(Mock())
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus(
-                "Last sync: {} not published".format(time.ctime(os_stat.st_mtime))
-            ),
+            BlockedStatus("Last sync: {} not published".format(time.ctime(os_stat.st_mtime))),
         )
 
     @patch("os.path.islink")
@@ -130,19 +125,13 @@ deb fake-uri fake-distro\
         self.harness.add_relation_unit(relation_id, "webserver/0")
         self.assertEqual(
             self.harness.get_relation_data(relation_id, self.harness._unit_name),
-            {
-                "path": "{}/publish".format(
-                    self.harness.charm._stored.config["base-path"]
-                )
-            },
+            {"path": "{}/publish".format(self.harness.charm._stored.config["base-path"])},
         )
 
     @patch("subprocess.check_output")
     def test_install(self, mock_subprocess_check_output):
         self.harness.charm._on_install(Mock())
-        mock_subprocess_check_output.assert_called_with(
-            ["apt", "install", "-y", "apt-mirror"]
-        )
+        mock_subprocess_check_output.assert_called_with(["apt", "install", "-y", "apt-mirror"])
 
     @patch("charm.open", new_callable=mock_open)
     def test_cron_schedule_set(self, mock_open_call):
@@ -162,9 +151,7 @@ deb fake-uri fake-distro\
         schedule = ""
         self.harness.update_config({"cron-schedule": schedule})
         os_path_exists.return_value = True
-        os_unlink.assert_called_with(
-            "/etc/cron.d/{}".format(self.harness.charm.model.app.name)
-        )
+        os_unlink.assert_called_with("/etc/cron.d/{}".format(self.harness.charm.model.app.name))
 
     @patch("charm.open", new_callable=mock_open)
     def test_apt_mirror_list(self, mocked_open):
@@ -280,12 +267,8 @@ deb fake-uri fake-distro\
         self.assertListEqual(filtered_mirrors, exp_mirrors)
 
         # based regex contains full source
-        mirror_regex = (
-            f"deb {archive} jammy-updates main restricted universe multiverse"
-        )
-        exp_mirrors = [
-            f"deb {archive} jammy-updates main restricted universe multiverse"
-        ]
+        mirror_regex = f"deb {archive} jammy-updates main restricted universe multiverse"
+        exp_mirrors = [f"deb {archive} jammy-updates main restricted universe multiverse"]
         filtered_mirrors = self.harness.charm._get_mirrors(mirror_regex)
         self.assertListEqual(filtered_mirrors, exp_mirrors)
 
@@ -317,9 +300,7 @@ deb fake-uri fake-distro\
         exp_mirrors = ["deb test1", "deb test2"]
         exp_config = "/tmp/test"
         exp_packages_to_clean = ["test"]
-        self.harness.charm._get_mirrors = mock_get_mirror = MagicMock(
-            return_value=exp_mirrors
-        )
+        self.harness.charm._get_mirrors = mock_get_mirror = MagicMock(return_value=exp_mirrors)
         self.harness.charm._create_tmp_apt_mirror_config = (
             mock_create_tmp_apt_mirror_config
         ) = MagicMock(return_value=Path(exp_config))
@@ -351,9 +332,7 @@ deb fake-uri fake-distro\
         exp_mirrors = ["deb test1", "deb test2"]
         exp_config = "/tmp/test"
         exp_packages_to_clean = ["test"]
-        self.harness.charm._get_mirrors = mock_get_mirror = MagicMock(
-            return_value=exp_mirrors
-        )
+        self.harness.charm._get_mirrors = mock_get_mirror = MagicMock(return_value=exp_mirrors)
         self.harness.charm._create_tmp_apt_mirror_config = (
             mock_create_tmp_apt_mirror_config
         ) = MagicMock(return_value=Path(exp_config))
@@ -606,9 +585,7 @@ deb fake-uri fake-distro\
         )
 
     def test_list_snapshots_action(self):
-        snapshot_name = "snapshot-{}".format(
-            datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        )
+        snapshot_name = "snapshot-{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
         snapshot = Mock()
         snapshot.name = snapshot_name
         for test_input, expected in [([snapshot], [snapshot_name]), ([], [])]:
@@ -618,17 +595,13 @@ deb fake-uri fake-distro\
                 self.harness.charm._list_snapshots = Mock()
                 self.harness.charm._list_snapshots.return_value = test_input
                 self.harness.charm._on_list_snapshots_action(action_event)
-                action_event.set_results.assert_called_once_with(
-                    {"snapshots": expected}
-                )
+                action_event.set_results.assert_called_once_with({"snapshots": expected})
 
     @patch("shutil.rmtree")
     def test_delete_snapshot_action_success(self, shutil_rmtree):
         snapshot_name = "snapshot-19700101"
         self.harness.charm._get_snapshot_name = Mock()
-        self.harness.charm._on_delete_snapshot_action(
-            Mock(params={"name": snapshot_name})
-        )
+        self.harness.charm._on_delete_snapshot_action(Mock(params={"name": snapshot_name}))
         self.assertEqual(
             shutil_rmtree.call_args,
             call("{}/{}".format(self.harness.model.config["base-path"], snapshot_name)),
@@ -639,9 +612,7 @@ deb fake-uri fake-distro\
         for snapshot_name in ["", str(uuid4())]:
             with self.subTest(name=snapshot_name):
                 self.harness.charm._get_snapshot_name = Mock()
-                self.harness.charm._on_delete_snapshot_action(
-                    Mock(params={"name": snapshot_name})
-                )
+                self.harness.charm._on_delete_snapshot_action(Mock(params={"name": snapshot_name}))
                 shutil_rmtree.assert_not_called()
 
     @patch("os.path.isdir")
@@ -663,9 +634,7 @@ deb fake-uri fake-distro\
         os_path_islink.return_value = True
         base_path = self.harness.charm._stored.config["base-path"]
         self.harness.charm._get_snapshot_name = Mock()
-        self.harness.charm._on_publish_snapshot_action(
-            Mock(params={"name": snapshot_name})
-        )
+        self.harness.charm._on_publish_snapshot_action(Mock(params={"name": snapshot_name}))
         self.assertEqual(
             os_symlink.call_args,
             call(
@@ -697,9 +666,7 @@ deb fake-uri fake-distro\
                         "base-path": str(base_path),
                     }
                 )
-            expected_snapshots = [
-                base_path / "snapshot-1970010{}".format(i) for i in range(3)
-            ]
+            expected_snapshots = [base_path / "snapshot-1970010{}".format(i) for i in range(3)]
             for snapshot in expected_snapshots:
                 snapshot.mkdir(parents=True)
             returned_snapshots = self.harness.charm._list_snapshots()

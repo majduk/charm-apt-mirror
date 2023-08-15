@@ -56,9 +56,7 @@ class TestUtils(unittest.TestCase):
         returned_outputs = set()
 
         for archive_root, indices in utils.locate_package_indices(TEST_MIRROR_PATH):
-            returned_outputs |= utils.find_packages_by_indices(
-                indices, base=archive_root
-            )
+            returned_outputs |= utils.find_packages_by_indices(indices, base=archive_root)
 
         self.assertEqual(sorted(expected_outputs), sorted(returned_outputs))
 
@@ -69,9 +67,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(expected_num_of_indices, len(returned_output))
 
         non_existing_path = Path(str(uuid4()))
-        self.assertRaises(
-            FileNotFoundError, utils.locate_package_indices, non_existing_path
-        )
+        self.assertRaises(FileNotFoundError, utils.locate_package_indices, non_existing_path)
 
     def test_convert_bytes(self):
         """Test convert_bytes on some sample bytes."""
@@ -89,9 +85,7 @@ class TestUtils(unittest.TestCase):
         expected_packages = {str(p.absolute()) for p in TEST_POOL.glob("**/*.deb")}
         returned_packages = [
             str(n)
-            for n in utils._locate_packages_from_index(
-                TEST_INDEX, archive_root=TEST_ARCHIVE_ROOT
-            )
+            for n in utils._locate_packages_from_index(TEST_INDEX, archive_root=TEST_ARCHIVE_ROOT)
         ]
         self.assertEqual(sorted(expected_packages), sorted(returned_packages))
 
