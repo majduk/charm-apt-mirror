@@ -1,2 +1,1 @@
-# to run func tests on controllers < 3.0
-juju < 3.1
+juju >= 3.1
