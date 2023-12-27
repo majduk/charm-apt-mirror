@@ -1,5 +1,8 @@
 # Apt Mirror
 
+## MAINTENANCE NOTICE ##
+This charm is under maintainence mode. Only critical bug will be handled.
+
 ## Description
 
 A small tool that provides ability to mirror any parts (or even all) of Debian and Ubuntu GNU/Linux distributions or any other apt sources which typically are provided by open source developers.
