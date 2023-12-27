@@ -1,7 +1,7 @@
 # Apt Mirror
 
-## MAINTENANCE NOTICE ##
-This charm is under maintainence mode. Only critical bug will be handled.
+> [!NOTE]
+> This charm is under maintainence mode. Only critical bug will be handled.
 
 ## Description
 
