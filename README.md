@@ -15,12 +15,12 @@ The charm can be deployed using `Juju`:
 juju deploy apt-mirror
 ```
 
-The charm can handle arbitrary set of upstream DEB sources via setting `mirror-list`. Example below shows a bundle with this charm configured to mirror multiple Ubuntu series (Bionic and Focal) in a single repository and expose this repository via NGINX. Additionally PPAs and external repositories can be mirrored.
+The charm can handle arbitrary set of upstream DEB sources via setting `mirror-list`. Example below shows a bundle with this charm configured to mirror multiple Ubuntu series (Focal and Jammy) in a single repository and expose this repository via NGINX. Additionally PPAs and external repositories can be mirrored.
 ```
-series: bionic
+series: jammy
 machines:
   '0':
-    series: bionic
+    series: jammy
 services:
   nginx:
     charm: nginx
@@ -34,14 +34,14 @@ services:
     num_units: 1
     options:
       mirror-list: |-
-        deb http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
-        deb http://archive.ubuntu.com/ubuntu bionic-updates main restricted universe multiverse
-        deb http://archive.ubuntu.com/ubuntu bionic-backports main restricted universe multiverse
-        deb http://security.ubuntu.com/ubuntu bionic-security main restricted universe multiverse
         deb http://archive.ubuntu.com/ubuntu focal main restricted universe multiverse
         deb http://archive.ubuntu.com/ubuntu focal-updates main restricted universe multiverse
         deb http://archive.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
         deb http://security.ubuntu.com/ubuntu focal-security main restricted universe multiverse
+        deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+        deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+        deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+        deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
     to:
     - '0'
 relations:

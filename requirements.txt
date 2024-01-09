@@ -1,3 +1,2 @@
-# remain compatible with bionic
-ops < 2.0
+ops
 jinja2

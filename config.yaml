@@ -4,7 +4,7 @@
 options:
   mirror-list:
     default: |-
-      deb http://archive.ubuntu.com/ubuntu bionic main restricted universe multiverse
+      deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
     description: A list of repositories to mirror.
     type: string
   base-path:

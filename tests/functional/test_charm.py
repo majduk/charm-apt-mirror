@@ -290,8 +290,8 @@ deb http://{0}/apt-mirror/{1} bionic main\
 
         # Start with 2 mirror lists.
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
-deb http://ppa.launchpad.net/landscape/19.10/ubuntu bionic main\
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu jammy main
+deb http://ppa.launchpad.net/landscape/self-hosted-23.10/ubuntu jammy main\
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
@@ -299,7 +299,7 @@ deb http://ppa.launchpad.net/landscape/19.10/ubuntu bionic main\
 
         # End up with 1 mirror lists.
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu jammy main
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
@@ -328,7 +328,7 @@ deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal mai
         # Start with 2 mirror lists.
         mirror_list = """\
 deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
-deb http://ppa.launchpad.net/landscape/19.10/ubuntu bionic main\
+deb http://ppa.launchpad.net/landscape/self-hosted-23.10/ubuntu jammy main\
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
@@ -417,15 +417,15 @@ deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal mai
 
         # Start with a test mirror
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu bionic main
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
         await apt_mirror_unit.run_action("synchronize")
 
-        # Upgrade the distro to focal
+        # Upgrade the distro to Jammy
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu jammy main
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
@@ -437,17 +437,17 @@ deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal mai
         count = int(results.get("count"))
         assert count == 0
 
-        # Let's switch back to bionic and create a snapshot before switching to
-        # focal.
+        # Let's switch back to Focal and create a snapshot before switching to
+        # Jammy.
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu bionic main
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])
         await apt_mirror_unit.run_action("synchronize")
         await helper.run_action_wait(apt_mirror_unit, "create-snapshot")
         mirror_list = """\
-deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu focal main
+deb https://ppa.launchpadcontent.net/canonical-bootstack/public/ubuntu jammy main
 """
         await apt_mirror_app.set_config({"mirror-list": mirror_list})
         await ops_test.model.wait_for_idle(apps=["apt-mirror"])

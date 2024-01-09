@@ -21,4 +21,4 @@ jobs:
       python-version-func: "3.10"
       tox-version: "<4"
       juju-channel: "3.1/stable"
-      commands: "['FUNC_ARGS=\"--series bionic\" make functional', 'FUNC_ARGS=\"--series focal\" make functional', 'FUNC_ARGS=\"--series jammy\" make functional']"
+      commands: "['FUNC_ARGS=\"--series focal\" make functional', 'FUNC_ARGS=\"--series jammy\" make functional']"

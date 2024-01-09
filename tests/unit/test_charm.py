@@ -156,7 +156,7 @@ deb fake-uri fake-distro\
     @patch("charm.open", new_callable=mock_open)
     def test_apt_mirror_list(self, mocked_open):
         url = "http://archive.ubuntu.com/ubuntu"
-        opts = "bionic main restricted universe multiverse"
+        opts = "jammy main restricted universe multiverse"
         self.harness.update_config({"mirror-list": "deb {} {}".format(url, opts)})
         mocked_open.assert_called_with(Path("/etc/apt/mirror.list"), "wb")
         mocked_open().write.assert_called_once_with(
