@@ -367,7 +367,7 @@ deb fake-uri fake-distro\
             }
         )
         default_config = self.harness.model.config
-        rand_subdir = random.randint(10, 100)
+        rand_subdir = str(random.randint(10, 100))
         upstream_path = "{}".format(uuid4())
         mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
@@ -385,51 +385,29 @@ deb fake-uri fake-distro\
         )
         os_path_exists.return_value = False
 
-        snapshot_name = uuid4()
+        snapshot_name = str(uuid4())
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._get_snapshot_name.return_value = snapshot_name
         self.harness.charm._on_create_snapshot_action(Mock())
-        self.assertTrue(os_symlink.called)
-        self.assertTrue(os_makedirs.called)
-        self.assertTrue(shutil_copytree.called)
-        self.assertEqual(
-            os_symlink.call_args,
-            call(
-                "{}/{}/{}/{}/{}/pool".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/{}/pool".format(
-                    default_config["base-path"],
-                    snapshot_name,
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-            ),
+        exp_src_root = (
+            self.harness.charm.base_path / "mirror" / mirror_host / upstream_path / rand_subdir
         )
-        self.assertEqual(
-            shutil_copytree.call_args,
-            call(
-                "{}/{}/{}/{}/{}/dists".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/{}/dists".format(
-                    default_config["base-path"],
-                    snapshot_name,
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-            ),
+        exp_dst_root = (
+            self.harness.charm.base_path
+            / snapshot_name
+            / mirror_host
+            / upstream_path
+            / rand_subdir
         )
+        os_makedirs.assert_has_calls(
+            [
+                call(self.harness.charm.base_path / snapshot_name),
+                call(exp_dst_root, exist_ok=True),
+                call(exp_dst_root, exist_ok=True),
+            ]
+        )
+        os_symlink.assert_called_once_with(exp_src_root / "pool", exp_dst_root / "pool")
+        shutil_copytree.assert_called_once_with(exp_src_root / "dists", exp_dst_root / "dists")
 
     @patch("charm.open", new_callable=mock_open)
     @patch("os.walk")
@@ -448,7 +426,7 @@ deb fake-uri fake-distro\
         )
         default_config = self.harness.model.config
 
-        rand_subdir = random.randint(10, 100)
+        rand_subdir = str(random.randint(10, 100))
         upstream_path = "{}".format(uuid4())
         mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
@@ -466,49 +444,23 @@ deb fake-uri fake-distro\
         )
         os_path_exists.return_value = False
 
-        snapshot_name = uuid4()
+        snapshot_name = str(uuid4())
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._get_snapshot_name.return_value = snapshot_name
         self.harness.charm._on_create_snapshot_action(Mock())
-        self.assertTrue(os_symlink.called)
-        self.assertTrue(os_makedirs.called)
-        self.assertTrue(shutil_copytree.called)
-        self.assertEqual(
-            os_symlink.call_args,
-            call(
-                "{}/{}/{}/{}/{}/pool".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/pool".format(
-                    default_config["base-path"],
-                    snapshot_name,
-                    upstream_path,
-                    rand_subdir,
-                ),
-            ),
+        exp_src_root = (
+            self.harness.charm.base_path / "mirror" / mirror_host / upstream_path / rand_subdir
         )
-        self.assertEqual(
-            shutil_copytree.call_args,
-            call(
-                "{}/{}/{}/{}/{}/dists".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/dists".format(
-                    default_config["base-path"],
-                    snapshot_name,
-                    upstream_path,
-                    rand_subdir,
-                ),
-            ),
+        exp_dst_root = self.harness.charm.base_path / snapshot_name / upstream_path / rand_subdir
+        os_makedirs.assert_has_calls(
+            [
+                call(self.harness.charm.base_path / snapshot_name),
+                call(exp_dst_root, exist_ok=True),
+                call(exp_dst_root, exist_ok=True),
+            ]
         )
+        os_symlink.assert_called_once_with(exp_src_root / "pool", exp_dst_root / "pool")
+        shutil_copytree.assert_called_once_with(exp_src_root / "dists", exp_dst_root / "dists")
 
     @patch("charm.open", new_callable=mock_open)
     @patch("os.walk")
@@ -529,7 +481,7 @@ deb fake-uri fake-distro\
         )
         default_config = self.harness.model.config
 
-        rand_subdir = random.randint(10, 100)
+        rand_subdir = str(random.randint(10, 100))
         mirror_url = default_config["mirror-list"].split()[1]
         mirror_host = urlparse(mirror_url).hostname
         mirror_path = "{}/mirror".format(default_config["base-path"])
@@ -546,43 +498,23 @@ deb fake-uri fake-distro\
         )
         os_path_exists.return_value = False
 
-        snapshot_name = uuid4()
+        snapshot_name = str(uuid4())
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._get_snapshot_name.return_value = snapshot_name
         self.harness.charm._on_create_snapshot_action(Mock())
-        self.assertTrue(os_symlink.called)
-        self.assertTrue(os_makedirs.called)
-        self.assertTrue(shutil_copytree.called)
-        self.assertEqual(
-            os_symlink.call_args,
-            call(
-                "{}/{}/{}/{}/{}/pool".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/pool".format(
-                    default_config["base-path"], snapshot_name, mirror_host, rand_subdir
-                ),
-            ),
+        exp_src_root = (
+            self.harness.charm.base_path / "mirror" / mirror_host / upstream_path / rand_subdir
         )
-        self.assertEqual(
-            shutil_copytree.call_args,
-            call(
-                "{}/{}/{}/{}/{}/dists".format(
-                    default_config["base-path"],
-                    "mirror",
-                    mirror_host,
-                    upstream_path,
-                    rand_subdir,
-                ),
-                "{}/{}/{}/{}/dists".format(
-                    default_config["base-path"], snapshot_name, mirror_host, rand_subdir
-                ),
-            ),
+        exp_dst_root = self.harness.charm.base_path / snapshot_name / mirror_host / rand_subdir
+        os_makedirs.assert_has_calls(
+            [
+                call(self.harness.charm.base_path / snapshot_name),
+                call(exp_dst_root, exist_ok=True),
+                call(exp_dst_root, exist_ok=True),
+            ]
         )
+        os_symlink.assert_called_once_with(exp_src_root / "pool", exp_dst_root / "pool")
+        shutil_copytree.assert_called_once_with(exp_src_root / "dists", exp_dst_root / "dists")
 
     def test_list_snapshots_action(self):
         snapshot_name = "snapshot-{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
@@ -602,10 +534,7 @@ deb fake-uri fake-distro\
         snapshot_name = "snapshot-19700101"
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._on_delete_snapshot_action(Mock(params={"name": snapshot_name}))
-        self.assertEqual(
-            shutil_rmtree.call_args,
-            call("{}/{}".format(self.harness.model.config["base-path"], snapshot_name)),
-        )
+        shutil_rmtree.assert_called_once_with(self.harness.charm.base_path / snapshot_name)
 
     @patch("shutil.rmtree")
     def test_delete_snapshot_action_failure(self, shutil_rmtree):
@@ -630,17 +559,13 @@ deb fake-uri fake-distro\
         os_path_islink,
         os_path_isdir,
     ):
-        snapshot_name = uuid4()
+        snapshot_name = str(uuid4())
         os_path_islink.return_value = True
-        base_path = self.harness.charm._stored.config["base-path"]
         self.harness.charm._get_snapshot_name = Mock()
         self.harness.charm._on_publish_snapshot_action(Mock(params={"name": snapshot_name}))
-        self.assertEqual(
-            os_symlink.call_args,
-            call(
-                "{}/{}".format(base_path, snapshot_name),
-                "{}/publish".format(base_path),
-            ),
+        os_symlink.assert_called_once_with(
+            self.harness.charm.base_path / snapshot_name,
+            self.harness.charm.base_path / "publish",
         )
 
     @patch("os.path.isdir")
@@ -650,7 +575,7 @@ deb fake-uri fake-distro\
     def test_publish_snapshot_action_fail(
         self, os_unlink, os_symlink, os_path_islink, os_path_isdir
     ):
-        snapshot_name = uuid4()
+        snapshot_name = str(uuid4())
         os_path_isdir.return_value = False
         action_event = Mock(params={"name": snapshot_name})
         self.harness.charm._get_snapshot_name = Mock()

@@ -55,16 +55,21 @@ class AptMirrorCharm(CharmBase):
 
         self._stored.set_default(config={})
 
+    @property
+    def base_path(self) -> Path:
+        """Return base-path."""
+        return Path(self._stored.config["base-path"])
+
     def _on_publish_relation_joined(self, event):
-        publish_path = "{}/publish".format(self._stored.config["base-path"])
-        event.relation.data[self.model.unit].update({"path": publish_path})
+        publish_path = self.base_path / "publish"
+        event.relation.data[self.model.unit].update({"path": str(publish_path)})
 
     def _update_status(self):
         published_snapshot = self._get_published_snapshot()
         if published_snapshot:
             self.model.unit.status = ActiveStatus("Publishes: {}".format(published_snapshot))
         else:
-            path = self._stored.config["base-path"] + "/mirror"
+            path = self.base_path / "mirror"
             if os.path.isdir(path):
                 stat = os.stat(path)
                 self.model.unit.status = BlockedStatus(
@@ -149,7 +154,7 @@ class AptMirrorCharm(CharmBase):
         # and should not be removed.
         indexed_packages = set()
         snapshot_paths = self._list_snapshots()
-        mirror_path = "{}/mirror".format(self._stored.config["base-path"])
+        mirror_path = self.base_path / "mirror"
         for path in snapshot_paths + [mirror_path]:
             for base, indices in locate_package_indices(path):
                 indexed_packages |= set(find_packages_by_indices(indices, base=base))
@@ -249,7 +254,7 @@ class AptMirrorCharm(CharmBase):
         try:
             if mirror_filter is None:
                 # clean dists only if no filter was applied
-                clean_dists(Path(self._stored.config["base-path"]))
+                clean_dists(self.base_path)
 
             logger.info("running apt-mirror for:%s", os.linesep + os.linesep.join(mirrors))
             tmp_path = self._create_tmp_apt_mirror_config(*mirrors)
@@ -278,30 +283,30 @@ class AptMirrorCharm(CharmBase):
     def _on_create_snapshot_action(self, event):
         snapshot_name = self._get_snapshot_name()
         logger.info("Create snapshot {}".format(snapshot_name))
-        snapshot_name_path = "{}/{}".format(self._stored.config["base-path"], snapshot_name)
-        mirror_path = "{}/mirror".format(self._stored.config["base-path"])
+        snapshot_name_path = self.base_path / snapshot_name
+        mirror_path = self.base_path / "mirror"
         mirrors = self._mirror_names()
         if not os.path.exists(snapshot_name_path):
             os.makedirs(snapshot_name_path)
         for dirpath, dirs, files in os.walk(mirror_path):
             if "pool" in dirs:
-                src_root = dirpath
-                src_pool = "{}/pool".format(src_root)
+                src_root = Path(dirpath)
+                src_pool = src_root / "pool"
                 subtree = self._build_subtree(mirrors, src_root, mirror_path)
-                dst_root = "{}/{}".format(snapshot_name_path, subtree)
-                dst_pool = "{}/pool".format(dst_root)
+                dst_root = snapshot_name_path / subtree
+                dst_pool = dst_root / "pool"
                 os.makedirs(dst_root, exist_ok=True)
                 os.symlink(src_pool, dst_pool)
-                logger.info("{} -> {}".format(src_pool, dst_pool))
+                logger.info("%s -> %s", src_pool, dst_pool)
             if "dists" in dirs:
-                src_root = dirpath
-                src_dists = "{}/dists".format(src_root)
+                src_root = Path(dirpath)
+                src_dists = src_root / "dists"
                 subtree = self._build_subtree(mirrors, src_root, mirror_path)
-                dst_root = "{}/{}".format(snapshot_name_path, subtree)
-                dst_dists = "{}/dists".format(dst_root)
+                dst_root = snapshot_name_path / subtree
+                dst_dists = dst_root / "dists"
                 os.makedirs(dst_root, exist_ok=True)
                 shutil.copytree(src_dists, dst_dists)
-                logger.info("{} -> {}".format(src_dists, dst_dists))
+                logger.info("%s -> %s", src_dists, dst_dists)
         self._update_status()
 
     def _on_delete_snapshot_action(self, event):
@@ -310,11 +315,11 @@ class AptMirrorCharm(CharmBase):
             event.fail("Invalid snapshot name: {}".format(snapshot))
             return
         logger.info("Delete snapshot {}".format(snapshot))
-        shutil.rmtree("{}/{}".format(self._stored.config["base-path"], snapshot))
+        shutil.rmtree(self.base_path / snapshot)
         self._update_status()
 
     def _list_snapshots(self):
-        return list(Path(self._stored.config["base-path"]).glob("snapshot-*"))
+        return list(self.base_path.glob("snapshot-*"))
 
     def _on_list_snapshots_action(self, event):
         snapshots = [p.name for p in self._list_snapshots()]
@@ -324,8 +329,8 @@ class AptMirrorCharm(CharmBase):
     def _on_publish_snapshot_action(self, event):
         name = event.params["name"]
         logger.info("Publish snapshot {}".format(name))
-        snapshot_path = "{}/{}".format(self._stored.config["base-path"], name)
-        publish_path = "{}/publish".format(self._stored.config["base-path"])
+        snapshot_path = self.base_path / name
+        publish_path = self.base_path / "publish"
         if not os.path.isdir(snapshot_path):
             event.fail("Snapshot does not exist")
             return
@@ -376,7 +381,7 @@ class AptMirrorCharm(CharmBase):
         ]
 
     def _get_published_snapshot(self):
-        publish_path = "{}/publish".format(self._stored.config["base-path"])
+        publish_path = self.base_path / "publish"
         if os.path.islink(publish_path):
             return os.path.basename(os.readlink(publish_path))
 
