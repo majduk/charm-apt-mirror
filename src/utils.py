@@ -6,7 +6,7 @@
 import logging
 import shutil
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Union
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +102,14 @@ def locate_package_indices(path):
     return zip(archive_roots, package_indices)
 
 
-def convert_bytes(num):
-    """Convert `num` of bytes to an appropriate unit."""
-    for unit in ["bytes", "KB", "MB", "GB", "TB"]:
+def convert_bytes(num: Union[int, float]) -> str:
+    """Convert `num` of bytes to a human readable value with unit.
+    """
+    for unit in ["bytes", "KB", "MB", "GB"]:
         if num < 1024:
             return "{:.1f} {}".format(num, unit)
         num /= 1024
+    return "{:.1f} TB".format(num)
 
 
 def _locate_packages_from_index(package_index, archive_root=""):

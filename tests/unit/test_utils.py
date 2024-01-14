@@ -145,10 +145,16 @@ class TestUtils(unittest.TestCase):
 
     def test_convert_bytes(self):
         """Test convert_bytes on some sample bytes."""
-        units = ["bytes", "KB", "MB", "GB", "TB"]
         test_params = [
-            (1000 ** (i + 1), "{:.1f} {}".format(1000 ** (i + 1) / 1024 ** (i), unit))
-            for i, unit in zip(range(5), units)
+            (-1000000, '-1000000.0 bytes'),
+            (1000, '1000.0 bytes'),
+            (1000000, '976.6 KB'),
+            (1000000000, '953.7 MB'),
+            (1000000000000, '931.3 GB'),
+            (1000000000000000, '909.5 TB'),
+            ((1024**5) - 1, '1024.0 TB'),
+            (1024**5, '1024.0 TB'),
+            (1024**6, '1048576.0 TB')
         ]
         for num, expected in test_params:
             with self.subTest():
